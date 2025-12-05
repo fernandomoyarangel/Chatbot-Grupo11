@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "uc3m-rag-chatbot"
+version = "1.0.0"
+description = "Chatbot RAG usando LangChain, ChromaDB y UC3M LLM"
+authors = ["Tu Nombre"]
+packages = [{ include = "app" }]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+
+fastapi = "*"
+uvicorn = "*"
+
+python-dotenv = "*"
+requests = "*"
+
+chromadb = "*"
+
+langchain = "*"
+langchain-community = "*"
+langchain-core = "*"
+langchain-ollama = "*"
+langchain-text-splitters = "*"
+langgraph = "*"
+
+sentence-transformers = "*"
+
+pydantic = "*"
