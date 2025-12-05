@@ -1,25 +1,38 @@
 import os
 from functools import lru_cache
+from typing import Optional
 
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaEmbeddings
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_core.vectorstores import VectorStore
 
 from langchain.tools import tool
 from langchain_core.runnables import RunnableConfig
 
+
+def get_embeddings():
+    """
+    Devuelve la funcion de embeddings. Por defecto usa HuggingFace
+    (all-MiniLM-L6-v2) para evitar depender de un servidor Ollama.
+    Si tienes Ollama levantado y el modelo cargado, define
+    EMBEDDINGS_BACKEND=ollama.
+    """
+    backend = os.getenv("EMBEDDINGS_BACKEND", "huggingface").lower()
+    if backend == "ollama":
+        model_name = os.getenv("OLLAMA_EMBED_MODEL", "embeddinggemma:latest")
+        return OllamaEmbeddings(model=model_name)
+    model_name = os.getenv("HF_EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    return HuggingFaceEmbeddings(model_name=model_name)
+
+
 @lru_cache(maxsize=None)
 def get_vector_store() -> VectorStore:
     """
-    Obtiene la conexión con la BD de embeddings usando ChromaDB.
-    Persiste automáticamente en disco.
+    Obtiene la conexion con la BD de embeddings usando ChromaDB.
+    Persiste automaticamente en disco.
     """
-
-    embeddings = OllamaEmbeddings(
-        model="embeddinggemma:latest"
-        # Para qwen normalmente se usa:
-        # model="nomic-embed-text"
-    )
+    embeddings = get_embeddings()
 
     persist_directory = os.getenv(
         "CHROMA_PATH",
@@ -35,50 +48,31 @@ def get_vector_store() -> VectorStore:
     return vector_store
 
 
-
-def get_rag_tools(local=True, titulo=None):
+def retrieve_context_data(query: str, k: int = 10):
     """
-    Función para obtener las herramientas que puede emplear el agente
+    Logica reutilizable para recuperar documentos relevantes.
+    Devuelve el texto serializado y la lista de documentos.
+    """
+    vector_store = get_vector_store()
 
-    Parámetros:  
-    - local (bool): indica si se emplearán modelos locales o Gemini  
-    - titulo (string): indica el título del libro sobre el que trabajará el RAG
+    retrieved_docs = vector_store.similarity_search(query, k=k)
 
-    Returns:  
-        - list[BaseTool]: lista con la herramienta de recuperación de contexto
+    serialized = "\n\n".join(
+        (f"Source: {doc.metadata}\nContent: {doc.page_content}")
+        for doc in retrieved_docs
+    )
+
+    return serialized, retrieved_docs
+
+
+def get_rag_tools():
+    """
+    Obtiene la lista de herramientas disponibles para el agente.
     """
 
-
-
-    @tool(description="Recuperación de contexto", response_format="content_and_artifact")
+    @tool(description="Recuperacion de contexto", response_format="content_and_artifact")
     def retrieve_context(query: str, config: RunnableConfig = None):
-        """ 
-        Función empleada como herramienta de recuperación de información relevante de un libro.
-
-        Parámetros:  
-        - query (string): consulta a realizar sobre el libro
-        
-        Returns:  
-        - serialized (string): texto original recuperado a partir de la información de los documentos  
-        - retrieved_docs (list[Document]): lista con los documentos recuperados por la consulta
-        """
-        vector_store = get_vector_store()
-
-        filtro = {"book": titulo} 
-
-        k=10
-
-        retrieved_docs = vector_store.similarity_search(query, k=k, filter=filtro)
-
-        serialized = "\n\n".join(
-            (f"Source: {doc.metadata}\nContent: {doc.page_content}")
-            for doc in retrieved_docs
-        )
-
-        return serialized, retrieved_docs
-
+        """Herramienta de recuperacion de informacion relevante desde Chroma."""
+        return retrieve_context_data(query=query, k=10)
 
     return [retrieve_context]
-
-
-

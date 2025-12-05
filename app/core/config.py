@@ -11,3 +11,10 @@ class Settings:
             "Pregunta:\n{question}\n\n"
             "Respuesta:"
         )
+    
+    UC3M_URL = "https://yiyuan.tsc.uc3m.es/api/generate"
+    DEFAULT_MODEL = "qwen3:8b"
+
+
+
+settings = Settings()
