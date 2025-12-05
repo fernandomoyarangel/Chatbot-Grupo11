@@ -23,7 +23,7 @@ def get_vector_store() -> VectorStore:
 
     persist_directory = os.getenv(
         "CHROMA_PATH",
-        "./chroma_db"
+        "./data/vector_db"
     )
 
     vector_store = Chroma(
