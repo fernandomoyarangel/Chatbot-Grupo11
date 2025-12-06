@@ -19,11 +19,10 @@ class RAGService:
     con el prompt definido en Settings. No usa tool calling.
     """
 
-    def __init__(self, idioma: str = "espanol", k: int = 5, titulo: Optional[str] = None):
+    def __init__(self, idioma: str = "espanol", k: int = 5):
         self.llm = get_llm_model()
         self.prompt_template = Settings.get_prompt()
         self.k = k
-        self.titulo = titulo
 
     def _build_context(self, query: str) -> str:
         serialized, _docs = retrieve_context_data(query=query, k=self.k)
