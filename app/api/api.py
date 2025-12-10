@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from uuid import uuid4
 
-from agente.rag_service import RAGService
+from app.agente.rag_service import RAGService
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import endpoints
 
@@ -13,7 +13,9 @@ app = FastAPI(
 )
 
 origins = [
-    "http://localhost:8080"
+    "http://localhost:8080",
+    "http://localhost:8501",
+    "http://0.0.0.0:8501",
 ]
 
 app.add_middleware(
@@ -24,4 +26,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(endpoints.router, prefix="/chatbot")
+app.include_router(endpoints.router)

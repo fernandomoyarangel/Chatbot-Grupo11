@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from uuid import uuid4
 
-from agente.rag_service import RAGService
+from app.agente.rag_service import RAGService
 from fastapi import APIRouter
 
 
