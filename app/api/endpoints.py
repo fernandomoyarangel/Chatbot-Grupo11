@@ -15,7 +15,8 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     session_id: str
-    answer: dict
+    answer: dict  # contiene content, role, y sources
+
 
 
 rag = RAGService()
@@ -32,7 +33,7 @@ def chat(req: ChatRequest):
 
     return ChatResponse(
         session_id=session_id,
-        answer=response
+        answer=response  
     )
 
 

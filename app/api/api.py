@@ -5,6 +5,9 @@ from uuid import uuid4
 from app.agente.rag_service import RAGService
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import endpoints
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(
     title="Movie RAG Chatbot API",

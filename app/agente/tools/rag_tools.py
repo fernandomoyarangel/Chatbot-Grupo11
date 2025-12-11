@@ -2,6 +2,7 @@ import os
 from functools import lru_cache
 from typing import Optional
 
+from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
@@ -9,6 +10,9 @@ from langchain_core.vectorstores import VectorStore
 
 from langchain.tools import tool
 from langchain_core.runnables import RunnableConfig
+
+# Carga variables de entorno (.env) antes de crear embeddings o abrir Chroma
+load_dotenv()
 
 
 def get_embeddings():

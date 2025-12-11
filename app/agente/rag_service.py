@@ -19,32 +19,31 @@ class RAGService:
     con el prompt definido en Settings. No usa tool calling.
     """
 
-    def __init__(self, idioma: str = "espanol", k: int = 5):
+    def __init__(self, idioma: str = "espanol", k: int = 10):
         self.llm = get_llm_model()
         self.prompt_template = Settings.get_prompt()
         self.k = k
 
-    def _build_context(self, query: str) -> str:
-        serialized, _docs = retrieve_context_data(query=query, k=self.k)
-        return serialized
+    
+    def _build_context(self, query: str):
+        serialized, docs = retrieve_context_data(query=query, k=self.k)
+        return serialized, docs
 
     def process_query(self, input: str, session_id: str):
-        """
-        Metodo empleado para que el agente procese una peticion.
-
-        Parametros:
-        - input (string): peticion del usuario
-        - session_id (string): identificador de sesion del usuario
-
-        Returns:
-        - JSON: la respuesta del agente en formato JSON
-        """
-        context = self._build_context(input)
-        prompt = self.prompt_template.format(context=context, question=input)
+        serialized, docs = self._build_context(input)
+        prompt = self.prompt_template.format(context=serialized, question=input)
 
         answer_text = self.llm.invoke(prompt)
+
+        # extrae fuentes legibles desde metadata
+        sources = []
+        for doc in docs:
+            meta = doc.metadata or {}
+            src = meta.get("source") or meta  # usa “source” si lo guardaste en ingest
+            sources.append({"source": src, "content": doc.page_content})
 
         return {
             "role": "assistant",
             "content": answer_text,
+            "sources": sources,  # docs usados
         }

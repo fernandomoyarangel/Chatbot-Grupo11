@@ -2,3 +2,4 @@
 poetry.lock
 .env
 data/
+docs/
