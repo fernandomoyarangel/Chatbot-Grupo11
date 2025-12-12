@@ -1,19 +1,32 @@
-
+from langchain_core.prompts import PromptTemplate
 class Settings:
 
     @staticmethod
     def get_prompt():
-        return (
-            "Eres un asistente en español. Responde de forma breve, directa y solo con la "
-            "información del contexto. Si falta info, di explícitamente que no está en el "
-            "contexto.\n\n"
-            "Contexto:\n{context}\n\n"
-            "Pregunta:\n{question}\n\n"
-            "Instrucciones:\n"
-            "- Sé conciso (2-4 frases). No inventes.\n"
-            "- Cita SIEMPRE AL FINAL DE LA RESPUESTA de qué documentos proviene el contexto.\n"
-            "- Si el contexto no contiene la respuesta, di que no la encuentras en el contexto.\n\n"
-            "Respuesta:"
+        # --- PROMPT EN INGLÉS ---
+        template_english = """
+        SYSTEM INSTRUCTIONS:
+        You are an expert movie assistant. Answer the user's question based EXCLUSIVELY on the context provided below.
+        
+        STRICT RULES:
+        1. **ONLY CONTEXT:** Do not use prior knowledge. If the answer is not explicitly in the text below, DO NOT invent it.
+        2. **NEGATIVE ANSWER:** If the information is not in the context, reply exactly: "I am sorry, I cannot find that information in the available documents."
+        3. **CITATIONS:** At the end of your answer, you MUST explicitly list the source filename using the format: "Source: [filename]" as it appears in the context.
+        4. **CONCISENESS:** Be brief and direct.
+        
+        RETRIEVED CONTEXT:
+        --------------------
+        {context}
+        --------------------
+        
+        USER QUESTION: {question}
+        
+        ANSWER:
+        """
+        
+        return PromptTemplate(
+            template=template_english, 
+            input_variables=["context", "question"]
         )
             
     UC3M_URL = "https://yiyuan.tsc.uc3m.es/api/generate"

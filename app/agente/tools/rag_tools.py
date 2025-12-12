@@ -34,7 +34,6 @@ def get_embeddings():
 def get_vector_store() -> VectorStore:
     """
     Obtiene la conexion con la BD de embeddings usando ChromaDB.
-    Persiste automaticamente en disco.
     """
     embeddings = get_embeddings()
 
@@ -44,7 +43,7 @@ def get_vector_store() -> VectorStore:
     )
 
     vector_store = Chroma(
-        collection_name="movie_rag",
+        # collection_name="movie_rag",  <--- BORRA O COMENTA ESTA LÍNEA
         embedding_function=embeddings,
         persist_directory=persist_directory,
     )
@@ -53,18 +52,19 @@ def get_vector_store() -> VectorStore:
 
 
 def retrieve_context_data(query: str, k: int = 10):
-    """
-    Logica reutilizable para recuperar documentos relevantes.
-    Devuelve el texto serializado y la lista de documentos.
-    """
     vector_store = get_vector_store()
-
     retrieved_docs = vector_store.similarity_search(query, k=k)
 
+    # --- CAMBIO A INGLÉS ---
     serialized = "\n\n".join(
-        (f"Source: {doc.metadata}\nContent: {doc.page_content}")
+        (
+            f"CONTENT:\n{doc.page_content}\n"
+            f"SOURCE: {doc.metadata.get('source', 'Unknown')}\n" # SOURCE en inglés
+            "----------------"
+        )
         for doc in retrieved_docs
     )
+    # -----------------------
 
     return serialized, retrieved_docs
 

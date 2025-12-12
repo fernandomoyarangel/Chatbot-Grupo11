@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Optional
+from langchain_core.prompts import PromptTemplate
 
 from .tools.rag_tools import retrieve_context_data
 from ..core.config import Settings
@@ -14,36 +15,46 @@ def get_llm_model():
 
 
 class RAGService:
-    """
-    Servicio RAG directo: recupera contexto desde Chroma y consulta el LLM UC3M
-    con el prompt definido en Settings. No usa tool calling.
-    """
-
-    def __init__(self, idioma: str = "espanol", k: int = 10):
+    def __init__(self, idioma: str = "english", k: int = 10):
         self.llm = get_llm_model()
-        self.prompt_template = Settings.get_prompt()
         self.k = k
+        self.prompt_template = Settings.get_prompt()
+        
 
-    
     def _build_context(self, query: str):
-        serialized, docs = retrieve_context_data(query=query, k=self.k)
-        return serialized, docs
+        return retrieve_context_data(query=query, k=self.k)
 
     def process_query(self, input: str, session_id: str):
         serialized, docs = self._build_context(input)
-        prompt = self.prompt_template.format(context=serialized, question=input)
+        
+        # --- CORTAFUEGOS EN INGLÉS ---
+        if not docs:
+            return {
+                "role": "assistant",
+                "content": "I am sorry, I could not find any information about that in the movie database.",
+                "sources": []
+            }
+        # -----------------------------
 
-        answer_text = self.llm.invoke(prompt)
+        prompt_text = self.prompt_template.format(context=serialized, question=input)
+        
+        # Invocación al LLM
+        response_obj = self.llm.invoke(prompt_text)
 
-        # extrae fuentes legibles desde metadata
+        # Limpieza de respuesta
+        if hasattr(response_obj, 'content'):
+            answer_text = response_obj.content
+        else:
+            answer_text = str(response_obj)
+
         sources = []
         for doc in docs:
             meta = doc.metadata or {}
-            src = meta.get("source") or meta  # usa “source” si lo guardaste en ingest
+            src = meta.get("source") or meta.get("name") or "Unknown"
             sources.append({"source": src, "content": doc.page_content})
 
         return {
             "role": "assistant",
             "content": answer_text,
-            "sources": sources,  # docs usados
+            "sources": sources,
         }
