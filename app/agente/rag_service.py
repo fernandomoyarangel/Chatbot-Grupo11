@@ -6,6 +6,7 @@ from .tools.rag_tools import retrieve_context_data
 from ..core.config import Settings
 from .uc3m_llm import UC3MChatModel
 from .translation_service import TranslationService
+from app.core.utils import build_doc_key, load_topic_maps
 
 
 @lru_cache(maxsize=None)
@@ -27,7 +28,7 @@ class RAGService:
         return retrieve_context_data(query=query, k=self.k)
 
     def process_query(self, input: str, session_id: str, language: str = "english"):
-       
+        doc_topics, topics_info = load_topic_maps()
         # Step 1: Translate question if in Spanish mode
         original_input = input
         if language == "spanish":
@@ -76,7 +77,17 @@ class RAGService:
         for doc in docs:
             meta = doc.metadata or {}
             src = meta.get("source") or meta.get("name") or "Unknown"
-            sources.append({"source": src, "content": doc.page_content})
+
+            doc_key = build_doc_key(meta, doc.page_content)
+            topic_id = doc_topics.get(doc_key, -1)
+            topic_words = topics_info.get(str(topic_id), {}).get("top_words", [])
+
+            sources.append({
+                "source": src,
+                "content": doc.page_content,
+                "topic_id": topic_id,
+                "topic_words": topic_words,
+            })
 
         return {
             "role": "assistant",
