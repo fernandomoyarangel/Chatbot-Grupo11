@@ -11,6 +11,7 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     question: str
+    language: str = "english"  # "english" or "spanish"
 
 
 class ChatResponse(BaseModel):
@@ -28,7 +29,8 @@ def chat(req: ChatRequest):
 
     response = rag.process_query(
         input=req.question,
-        session_id=session_id
+        session_id=session_id,
+        language=req.language
     )
 
     return ChatResponse(

@@ -30,3 +30,9 @@ langchain-huggingface = "^1.1.0"
 langchain-chroma = "^1.0.0"
 streamlit = "^1.52.1"
 unstructured = "^0.18.21"
+
+# Translation dependencies
+transformers = "^4.30.0"
+torch = "^2.0.0"
+sentencepiece = "*"
+sacremoses = "*"
