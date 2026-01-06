@@ -10,9 +10,10 @@ class Settings:
         
         STRICT RULES:
         1. **ONLY CONTEXT:** Do not use prior knowledge. If the answer is not explicitly in the text below, DO NOT invent it.
-        2. **NEGATIVE ANSWER:** If the information is not in the context, reply exactly: "I am sorry, I cannot find that information in the available documents."
-        3. **CITATIONS:** At the end of your answer, you MUST explicitly list the source filename using the format: "Source: [filename]" as it appears in the context.
-        4. **CONCISENESS:** Be brief and direct.
+        2. **NEGATIVE ANSWER:** If the information is not in the context, reply EXACTLY: 
+           "I am sorry, I cannot find that information in the available documents." 
+           and **DO NOT** include a "Source:" section.
+        3. **CONCISENESS:** Be brief and direct.
         
         RETRIEVED CONTEXT:
         --------------------

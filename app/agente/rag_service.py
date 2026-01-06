@@ -7,7 +7,7 @@ from ..core.config import Settings
 from .uc3m_llm import UC3MChatModel
 from .translation_service import TranslationService
 from app.core.utils import build_doc_key, load_topic_maps
-
+from pathlib import Path
 
 @lru_cache(maxsize=None)
 def get_llm_model():
@@ -55,7 +55,8 @@ class RAGService:
             return {
                 "role": "assistant",
                 "content": no_info_message,
-                "sources": []
+                "sources": [],
+                "suggestions": []
             }
 
         # Step 4: Generate prompt and invoke LLM (always in English)
@@ -88,9 +89,103 @@ class RAGService:
                 "topic_id": topic_id,
                 "topic_words": topic_words,
             })
+        negative_markers = [
+            "I am sorry, I cannot find",
+            "Lo siento, no puedo encontrar",
+            "no he encontrado información",
+            "cannot find that information"
+        ]
 
+        is_negative_answer = any(marker in answer_text for marker in negative_markers)
+        suggestions=[]
+        if is_negative_answer:
+            sources = []
+        else:
+            suggestions = self._generate_suggestions(answer_text, language)
         return {
             "role": "assistant",
             "content": answer_text,
             "sources": sources,
+            "suggestions": suggestions
         }
+
+    def summarize_document(self, filename: str, language: str = "english") -> str:
+        """
+        Lee el archivo completo de data/source_docs y genera un resumen.
+        """
+        try:
+            # 1. Construir la ruta al archivo
+            # Asumimos que rag_service.py está en app/agente/, así que subimos 2 niveles para llegar a la raíz
+            project_root = Path(__file__).resolve().parents[2]
+            file_path = project_root / "data" / "source_docs" / filename
+
+            # 2. Verificar existencia
+            if not file_path.exists():
+                return f"Error: No se encuentra el archivo fuente original ({filename})."
+
+            # 3. Leer contenido
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                full_text = f.read()
+
+            # 4. TRUNCADO DE SEGURIDAD (IMPORTANTE)
+                max_chars = 25000
+            if len(full_text) > max_chars:
+                full_text = full_text[:max_chars] + "\n... [Texto truncado por longitud] ..."
+
+            # 5. Crear Prompt
+            if language.lower() == "spanish":
+                prompt = (
+                    "Eres un experto en cine. A continuación se presenta el contenido de un documento sobre una película. "
+                    "Genera un resumen completo y estructurado en Español que capture la trama principal y los detalles clave.\n\n"
+                    f"DOCUMENTO:\n{full_text}\n\nRESUMEN:"
+                )
+            else:
+                prompt = (
+                    "You are a movie expert. Below is the content of a document about a movie. "
+                    "Generate a complete and structured summary in English capturing the main plot and key details.\n\n"
+                    f"DOCUMENT:\n{full_text}\n\nSUMMARY:"
+                )
+
+            # 6. Invocar LLM
+            response_obj = self.llm.invoke(prompt)
+
+            if hasattr(response_obj, 'content'):
+                return response_obj.content
+            return str(response_obj)
+
+        except Exception as e:
+            return f"Error al procesar el archivo: {str(e)}"
+
+    def _generate_suggestions(self, answer_text: str, language: str) -> list:
+        """Genera 3 preguntas cortas de seguimiento basadas en la respuesta."""
+        try:
+            if language == "spanish":
+                prompt = (
+                    f"Basándote en el siguiente texto, genera exactamente 3 preguntas cortas y curiosas "
+                    f"que un usuario podría hacer a continuación para saber más. "
+                    f"Formato: Solo las preguntas separadas por saltos de línea, sin numeración ni guiones.\n\n"
+                    f"TEXTO: {answer_text[:1000]}\n\nPREGUNTAS:"
+                )
+            else:
+                prompt = (
+                    f"Based on the following text, generate exactly 3 short and curious follow-up questions "
+                    f"a user might ask to learn more. "
+                    f"Format: Only the questions separated by newlines, no numbers or bullets.\n\n"
+                    f"TEXT: {answer_text[:1000]}\n\nQUESTIONS:"
+                )
+
+            response = self.llm.invoke(prompt)
+            text = response.content if hasattr(response, 'content') else str(response)
+
+            # Limpiar y filtrar líneas vacías
+            suggestions = [line.strip() for line in text.split('\n') if line.strip()]
+            # Asegurar que solo devolvemos 3 y quitamos posibles guiones o números del LLM
+            clean_suggestions = []
+            for s in suggestions[:3]:
+                clean_s = s.lstrip("1234567890.-• ").strip()
+                clean_suggestions.append(clean_s)
+
+            return clean_suggestions
+        except Exception as e:
+            print(f"Error generando sugerencias: {e}")
+            return []

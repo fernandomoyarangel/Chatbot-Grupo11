@@ -90,9 +90,22 @@ def visualize_topics(req: TopicVisualizationRequest):
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
+class SummaryRequest(BaseModel):
+    filename: str
+    language: str = "english"
 
+class SummaryResponse(BaseModel):
+    summary: str
 
-
+@router.post("/summary", response_model=SummaryResponse)
+def get_summary(req: SummaryRequest):
+    try:
+        # Usamos la variable 'rag' que ya tienes definida arriba en este archivo
+        summary_text = rag.summarize_document(filename=req.filename, language=req.language)
+        return SummaryResponse(summary=summary_text)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+# -------------------
 @router.get("/health")
 def health():
     return {"status": "ok"}

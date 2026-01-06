@@ -6,7 +6,7 @@ authors = ["Tu Nombre"]
 packages = [{ include = "app" }]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
+python = ">=3.10,<3.13"
 
 fastapi = "*"
 uvicorn = "*"
@@ -37,3 +37,4 @@ torch = "^2.0.0"
 sentencepiece = "*"
 sacremoses = "*"
 bertopic = "^0.17.4"
+langdetect = "^1.0.9"
