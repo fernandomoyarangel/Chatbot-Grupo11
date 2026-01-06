@@ -1,14 +1,25 @@
 import os
+import sys
 import requests
 import streamlit as st
 from langdetect import detect, DetectorFactory, LangDetectException
+from pathlib import Path
+project_root = Path(__file__).resolve().parent.parent.parent
 
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+# ------------------------------------
+
+# AHORA sí funcionarán estos imports
+from app.agente.rag_service import get_llm_model
+from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage
 # --- Configuración de la página ---
 st.set_page_config(
     page_title="CineBot Expert 🎬",
     page_icon="🍿",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
 # --- DICCIONARIO DE TRADUCCIONES (Internacionalización) ---
@@ -24,8 +35,8 @@ TEXTS = {
         "info_text": "**Info:** I am your expert movie screenwriter. Ask me about directors, plots, or recommendations using RAG.",
         "footer": "© 2025 CineBot Productions",
         "main_title": "🎬 CineBot Expert",
-        "sub_header": '"I\'m gonna make him an offer he can\'t refuse... answering his movie questions."',
-        "placeholder": "Write your script here...",
+        "sub_header": '"I\'m gonna make you an offer you can\'t refuse... answering your movie questions."',
+        "placeholder": "Write your cinema questions here...",
         "spinner": "Consulting the film library...",
         "error_cut": "Cut! Error",
         "error_proj": "The projectionist had a problem.",
@@ -52,7 +63,7 @@ TEXTS = {
         "footer": "© 2025 CineBot Producciones",
         "main_title": "🎬 CineBot Expert",
         "sub_header": '"Le haré una oferta que no podrá rechazar... responder sus dudas de cine."',
-        "placeholder": "Escribe tu guion aquí...",
+        "placeholder": "Escribe tu pregunta cinematográfica aquí...",
         "spinner": "Consultando la filmoteca...",
         "error_cut": "¡Corte! Error",
         "error_proj": "El proyeccionista tuvo un problema.",
@@ -364,6 +375,46 @@ with st.sidebar:
 # --- Interfaz Principal ---
 st.markdown(f'<div class="main-header">{get_text("main_title")}</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="sub-header">{get_text("sub_header")}</div>', unsafe_allow_html=True)
+
+
+def detect_language_with_llm(text: str) -> str:
+    """
+    Usa el LLM para clasificar el idioma cuando langdetect falla.
+    """
+    try:
+        # Obtenemos la instancia cacheada del modelo (Qwen/Llama según tu config)
+        llm = get_llm_model()
+
+        # Truco de eficiencia: Solo analizamos los primeros 200 caracteres
+        sample = text[:200].replace("\n", " ")
+
+        prompt = f"""
+        Classify the language of the following text. 
+        Return ONLY one word: 'Español' or 'English'.
+        If you are unsure, default to 'English'.
+
+        Text: "{sample}"
+        Language:
+        """
+
+        # Invocamos al modelo
+        response = llm.invoke(prompt)
+
+        # Limpiamos la respuesta (quitamos espacios, puntos, etc.)
+        detected = response.content.strip().replace(".", "")
+
+        # Normalizamos la salida
+        if "Español" in detected or "Spanish" in detected:
+            return "Español"
+        if "English" in detected or "Ingles" in detected:
+            return "English"
+        return None
+
+    except Exception as e:
+        print(f"Error en detección LLM: {e}")
+        return None
+
+
 def smart_language_detector(text, client_llm=None):
     """
     Devuelve "Español", "English" o None si no está seguro.
@@ -372,37 +423,20 @@ def smart_language_detector(text, client_llm=None):
     if not text or len(text.strip()) < 2:
         return None
 
-    # --- 1. INTENTO LOCAL (Rápido) ---
+    # --- 1. INTENTO LOCAL (Rápido, coste cero) ---
     try:
         local_code = detect(text)
+        # Si langdetect está muy seguro, retornamos.
+        if local_code in ['es', 'ca']:
+            return "Español"
+        if local_code == 'en':
+            return "English"
     except LangDetectException:
-        local_code = None
+        pass
 
-    # Mapeo directo: Si es local y seguro, retornamos ya el nombre final
-    if local_code in ['es', 'ca']:
-        return "Español"
-    if local_code == 'en':
-        return "English"
-    return None
-    # --- 2. INTENTO LLM ---
-    # Si llegamos aquí, es porque langdetect falló, dio un idioma raro (hr, it...)
-    # o el texto es muy corto.
-    # Llamar al nuestro
-    # try:
-    #     prompt = f"Clasifica el idioma de: '{text}'. Responde solo 'es' o 'en'. Si es catalan responde 'es'."
-    #     response = client_llm.chat.completions.create(..., messages=[...])
-    #     llm_code = response.choices[0].message.content.strip().lower()
-    # except:
-    #     llm_code = "error"
-
-
-    # Mapeo de la respuesta del LLM
-    if llm_code in ['es', 'ca', 'spanish', 'español']:
-        return "Español"
-    if llm_code in ['en', 'english']:
-        return "English"
-
-    return None
+    # --- 2. INTENTO LLM (Inteligente, coste API) ---
+    print(f"DEBUG: Usando LLM para detectar idioma de: '{text[:30]}...'")
+    return detect_language_with_llm(text)
 
 def render_topics_modal():
     if st.session_state.topic_error:
@@ -554,7 +588,8 @@ if prompt_to_process:
         message_placeholder = st.empty()
         full_response = ""
         full_answer_obj = {}  # [NEW]
-
+        sources = []
+        suggestions = []
         with st.spinner(get_text("spinner")):
             sources = []
             try:

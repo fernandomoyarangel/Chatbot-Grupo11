@@ -101,7 +101,7 @@ class RAGService:
         if is_negative_answer:
             sources = []
         else:
-            suggestions = self._generate_suggestions(answer_text, language)
+            suggestions = self._generate_suggestions(answer_text, serialized, input, language)
         return {
             "role": "assistant",
             "content": answer_text,
@@ -156,34 +156,47 @@ class RAGService:
         except Exception as e:
             return f"Error al procesar el archivo: {str(e)}"
 
-    def _generate_suggestions(self, answer_text: str, language: str) -> list:
-        """Genera 3 preguntas cortas de seguimiento basadas en la respuesta."""
+    def _generate_suggestions(self, answer_text: str, context_text: str, question_text: str, language: str) -> list:
+        """Genera 2 preguntas cortas de seguimiento basadas en el contexto y la pregunta original."""
         try:
+            safe_context = context_text[:3000]
+
             if language == "spanish":
                 prompt = (
-                    f"Basándote en el siguiente texto, genera exactamente 3 preguntas cortas y curiosas "
-                    f"que un usuario podría hacer a continuación para saber más. "
-                    f"Formato: Solo las preguntas separadas por saltos de línea, sin numeración ni guiones.\n\n"
-                    f"TEXTO: {answer_text[:1000]}\n\nPREGUNTAS:"
+                    f"Tu tarea es sugerir preguntas futuras para el usuario basadas en el siguiente CONTEXTO.\n"
+                    f"PREGUNTA ORIGINAL DEL USUARIO: '{question_text}'\n"
+                    f"CONTEXTO DISPONIBLE:\n{safe_context}\n\n"
+                    f"Genera exactamente 2 preguntas breves, sobre el tema global del contexto.\n\n"
+                    f"REGLAS:\n"
+                    f"- Las preguntas deben tener respuesta en el CONTEXTO.\n"
+                    f"- Sé conciso.\n\n"
+                    f"Formato: Solo las 2 preguntas separadas por saltos de línea.\n"
+                    f"PREGUNTAS:"
                 )
             else:
                 prompt = (
-                    f"Based on the following text, generate exactly 3 short and curious follow-up questions "
-                    f"a user might ask to learn more. "
-                    f"Format: Only the questions separated by newlines, no numbers or bullets.\n\n"
-                    f"TEXT: {answer_text[:1000]}\n\nQUESTIONS:"
+                    f"Your task is to suggest follow-up questions based on the provided CONTEXT.\n"
+                    f"ORIGINAL USER QUESTION: '{question_text}'\n"
+                    f"AVAILABLE CONTEXT:\n{safe_context}\n\n"
+                    f"- Questions MUST be answerable using the CONTEXT.\n"
+                    f"Generate exactly 2 brief questions, about the main theme of the context.\n\n"
+                    f"RULES:\n"
+                    f"- Be concise.\n\n"
+                    f"Format: Only the 2 questions separated by newlines.\n"
+                    f"QUESTIONS:"
                 )
 
             response = self.llm.invoke(prompt)
             text = response.content if hasattr(response, 'content') else str(response)
 
-            # Limpiar y filtrar líneas vacías
+            # Limpiar y filtrar
             suggestions = [line.strip() for line in text.split('\n') if line.strip()]
-            # Asegurar que solo devolvemos 3 y quitamos posibles guiones o números del LLM
+
             clean_suggestions = []
-            for s in suggestions[:3]:
+            for s in suggestions[:2]:  # Máximo 2
                 clean_s = s.lstrip("1234567890.-• ").strip()
-                clean_suggestions.append(clean_s)
+                if clean_s:
+                    clean_suggestions.append(clean_s)
 
             return clean_suggestions
         except Exception as e:
