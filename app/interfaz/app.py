@@ -387,9 +387,7 @@ def smart_language_detector(text, client_llm=None):
     # --- 2. INTENTO LLM ---
     # Si llegamos aquí, es porque langdetect falló, dio un idioma raro (hr, it...)
     # o el texto es muy corto.
-
-    # -- AQUÍ LLAMAS A TU LLM --
-    # Ejemplo conceptual (descomenta y adapta a tu cliente real):
+    # Llamar al nuestro
     # try:
     #     prompt = f"Clasifica el idioma de: '{text}'. Responde solo 'es' o 'en'. Si es catalan responde 'es'."
     #     response = client_llm.chat.completions.create(..., messages=[...])
