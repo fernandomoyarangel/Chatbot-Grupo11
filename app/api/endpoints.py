@@ -109,3 +109,18 @@ def get_summary(req: SummaryRequest):
 @router.get("/health")
 def health():
     return {"status": "ok"}
+
+class SurpriseRequest(BaseModel):
+    language: str = "english"
+
+class SurpriseResponse(BaseModel):
+    curiosity: str
+
+@router.post("/surprise", response_model=SurpriseResponse)
+def get_surprise(req: SurpriseRequest):
+    try:
+        # Usamos la instancia 'rag' que ya tienes creada en este archivo
+        text = rag.get_curiosity(language=req.language)
+        return SurpriseResponse(curiosity=text)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))

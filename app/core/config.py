@@ -33,6 +33,24 @@ class Settings:
     UC3M_URL = "https://yiyuan.tsc.uc3m.es/api/generate"
     DEFAULT_MODEL = "qwen3:8b"
 
+    @staticmethod
+    def get_surprise_prompt():
+        template = """
+        SYSTEM: You are a movie trivia generator, NOT a chatbot.
+        TASK: Extract ONE interesting fact from the provided text (plot twist, cast detail, or event) and format it as a curiosity.
 
+        STRICT OUTPUT RULES:
+        1. Start DIRECTLY with "Did you know that...".
+        2. Do NOT use introductory phrases like "Here is a fact" or "Sure!".
+        3. Do NOT explain why you chose this fact.
+        4. Do NOT include parentheses with meta-comments.
+        5. Output ONLY the fact string.
+
+        TEXT DATA:
+        {context}
+
+        RESPONSE:
+        """
+        return PromptTemplate(template=template, input_variables=["context"])
 
 settings = Settings()

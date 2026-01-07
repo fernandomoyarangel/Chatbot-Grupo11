@@ -8,6 +8,7 @@ from .uc3m_llm import UC3MChatModel
 from .translation_service import TranslationService
 from app.core.utils import build_doc_key, load_topic_maps
 from pathlib import Path
+import random
 
 @lru_cache(maxsize=None)
 def get_llm_model():
@@ -21,6 +22,7 @@ class RAGService:
         self.llm = get_llm_model()
         self.k = k
         self.prompt_template = Settings.get_prompt()
+        self.surprise_prompt = Settings.get_surprise_prompt()
         self.translation_service = TranslationService()
         
 
@@ -202,3 +204,49 @@ class RAGService:
         except Exception as e:
             print(f"Error generando sugerencias: {e}")
             return []
+
+    def get_curiosity(self, language: str = "english") -> str:
+        """Genera un dato curioso aleatorio buscando en la base de datos."""
+        try:
+            # 1. Palabras clave (igual que antes)
+            search_terms = ["plot twist", "ending", "character", "death", "wedding", "war", "love", "secret", "family"]
+            random_term = random.choice(search_terms)
+
+            # 2. Contexto (igual que antes)
+            serialized_context, docs = retrieve_context_data(query=random_term, k=3)
+
+            if not docs:
+                return "No he encontrado cintas en la filmoteca hoy."
+
+            # 3. Invocar LLM
+            prompt_text = self.surprise_prompt.format(context=serialized_context)
+            response_obj = self.llm.invoke(prompt_text)
+
+            fact_text = response_obj.content if hasattr(response_obj, 'content') else str(response_obj)
+
+            # --- LIMPIEZA DE RESPUESTA (NUEVO) ---
+            # Quitamos comillas extra, espacios y posibles introducciones que se hayan colado
+            fact_text = fact_text.strip().strip('"').strip("'")
+
+            # Si el modelo sigue diciendo "Here is a detail:", lo cortamos a la fuerza
+            if ":" in fact_text[:20]:
+                fact_text = fact_text.split(":", 1)[1].strip()
+
+            # 4. Traducción y Formato Final
+            if language == "spanish":
+                fact_text = self.translation_service.translate_en_to_es(fact_text)
+
+                # Normalizamos el inicio para que quede perfecto
+                # Quitamos variantes para unificar
+                lower_fact = fact_text.lower()
+                if lower_fact.startswith("sabías que"):
+                    fact_text = "¿Sabías que" + fact_text[10:]  # Reconstruimos con interrogación si falta
+                elif lower_fact.startswith("¿sabías que"):
+                    pass  # Ya está bien
+                else:
+                    fact_text = "¿Sabías que... " + fact_text
+
+            return fact_text
+
+        except Exception as e:
+            return f"Error generando curiosidad: {str(e)}"

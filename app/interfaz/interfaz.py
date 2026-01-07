@@ -49,7 +49,9 @@ TEXTS = {
         "empty_chat_desc": "What movie or fact are we looking for today?",
         "topic_gen_spinner": "Modeling topics...",
         "topic_vis_spinner": "Generating topic chart...",
-        "suggestions_label": "💡 You might also ask:"
+        "suggestions_label": "💡 You might also ask:",
+        "btn_surprise": "🎲 Surprise me!",
+        "surprise_prefix": "Did you know...",
     },
     "Español": {
         "sidebar_title": "Taquilla & Ajustes",
@@ -76,7 +78,9 @@ TEXTS = {
         "empty_chat_desc": "¿Qué película o dato cinematográfico buscamos hoy?",
         "topic_gen_spinner": "Modelando tópicos...",
         "topic_vis_spinner": "Generando gráfico de tópicos...",
-        "suggestions_label": "💡 Quizás te interese:"
+        "suggestions_label": "💡 Quizás te interese:",
+        "btn_surprise": "🎲 ¡Sorpréndeme!",
+        "surprise_prefix": "Sabías que...",
     }
 }
 
@@ -297,80 +301,85 @@ def dedupe_sources(sources):
 
 # --- Sidebar ---
 with st.sidebar:
-    st.image("https://img.icons8.com/dusk/200/clapperboard.png", output_format="PNG")
-    st.title(get_text("sidebar_title"))
-    st.markdown("---")
-    st.write(get_text("sidebar_desc"))
+    # 1. CABECERA
+    col_img, col_txt = st.columns([0.35, 0.65])
 
-    if st.button(get_text("btn_reset"), use_container_width=True):
+    with col_img:
+        st.image("https://img.icons8.com/dusk/200/clapperboard.png", width="stretch")
+
+    with col_txt:
+        # Texto un poco más ajustado
+        st.markdown(
+            f"""<div style='line-height: 1.1; font-weight: bold; color: #FFCC80; padding-top: 5px;'>
+            {get_text('sidebar_desc').replace(chr(10), '<br>')}
+            </div>""",
+            unsafe_allow_html=True
+        )
+
+    # 2. SEPARADOR PERSONALIZADO (Aquí está el truco para acercar el botón)
+    # Usamos margen negativo (-15px) para subir la línea y pegarla a la claqueta
+    st.markdown(
+        "<div style='margin-top: -15px; margin-bottom: 10px; border-top: 1px solid #8D6E63;'></div>",
+        unsafe_allow_html=True
+    )
+
+    # 3. BOTONES DE ACCIÓN (Ahora estarán más cerca)
+    if st.button(get_text("btn_reset"), width="stretch"):
         clear_history()
         st.rerun()
 
-    st.markdown("---")
+    if st.button(get_text("btn_surprise"), width="stretch"):
+        with st.spinner("🎲 ..."):
+            try:
+                lang_map = {"English": "english", "Español": "spanish"}
+                api_lang = lang_map.get(st.session_state.language, "english")
+                resp = requests.post(f"{API_URL}/surprise", json={"language": api_lang}, timeout=60)
+                if resp.ok:
+                    curiosity = resp.json().get("curiosity", "")
+                    prefix = get_text("surprise_prefix")
+                    final_text = f"🎲 **{prefix}** {curiosity}" if not curiosity.lower().startswith(
+                        prefix.lower()) else f"🎲 **{curiosity}**"
+                    st.session_state.history.append(("assistant", final_text))
+                    st.session_state.sources_history.append({"sources": [], "suggestions": []})
+                    st.rerun()
+                else:
+                    st.error(f"Err: {resp.text}")
+            except Exception as e:
+                st.error(f"Conn: {e}")
 
-    # Language selector (AUTOMÁTICO con key="language")
-    st.write(get_text("lang_label"))
-    st.selectbox(
-        "Selecciona el idioma",
-        ["English", "Español"],
-        key="language",  # Conecta con st.session_state.language
-        label_visibility="collapsed"
-    )
+    # 4. IDIOMA
+    st.markdown(f"**{get_text('lang_label')}**")
+    st.selectbox("Lang", ["English", "Español"], key="language", label_visibility="collapsed")
 
-    st.markdown("---")
-    st.write(get_text("analytics_title"))
+    # 5. ANALÍTICA
+    st.markdown(f"**{get_text('analytics_title')}**")
 
-    # Botón Generar Tópicos
-    if st.button(get_text("btn_topics_gen"), use_container_width=True):
+    if st.button(get_text("btn_topics_gen"), width="stretch"):
         with st.spinner(get_text("topic_gen_spinner")):
             try:
                 lang_map = {"English": "english", "Español": "spanish"}
-                resp = requests.post(
-                    f"{API_URL}/topics",
-                    json={"language": lang_map.get(st.session_state.language, "english")},
-                    timeout=300,
-                )
-                if resp.ok:
-                    result = resp.json()
-                    st.success(f"Modelo guardado en: {result['output_dir']}")
-                    st.caption(f"Temas: {result['topic_count']} | Documentos: {result['document_count']}")
-                else:
-                    st.error(f"Error {resp.status_code}: {resp.text}")
-            except requests.exceptions.RequestException as exc:
-                st.error(f"Error API: {exc}")
+                requests.post(f"{API_URL}/topics", json={"language": lang_map.get(st.session_state.language)},
+                              timeout=300)
+                st.success("OK")
+            except:
+                pass
 
-    # Botón Visualizar Tópicos
-    if st.button(get_text("btn_topics_vis"), use_container_width=True):
+    if st.button(get_text("btn_topics_vis"), width="stretch"):
         st.session_state.show_topics_modal = True
-        st.session_state.topic_error = None
-        st.session_state.topic_plot_html = None
-        st.session_state.topic_topics = None
         with st.spinner(get_text("topic_vis_spinner")):
             try:
                 lang_map = {"English": "english", "Español": "spanish"}
-                resp = requests.post(
-                    f"{API_URL}/topics/visualize",
-                    json={
-                        "top_n_topics": 10,
-                        "top_n_words": 10,
-                        "rebuild_if_missing": False,
-                        "language": lang_map.get(st.session_state.language, "english"),
-                    },
-                    timeout=300,
-                )
+                resp = requests.post(f"{API_URL}/topics/visualize",
+                                     json={"language": lang_map.get(st.session_state.language)}, timeout=300)
                 if resp.ok:
-                    result = resp.json()
-                    st.session_state.topic_plot_html = result.get("plot_html")
-                    st.session_state.topic_topics = result.get("topics")
-                    st.session_state.topic_error = None
-                else:
-                    st.session_state.topic_error = f"Error {resp.status_code}: {resp.text}"
-            except requests.exceptions.RequestException as exc:
-                st.session_state.topic_error = f"Error API: {exc}"
+                    res = resp.json()
+                    st.session_state.topic_plot_html = res.get("plot_html")
+                    st.session_state.topic_topics = res.get("topics")
+            except:
+                pass
 
-    st.markdown("---")
-    st.info(get_text("info_text"))
-    st.markdown(get_text("footer"))
+    st.caption(get_text("info_text"))
+    st.caption(get_text("footer"))
 
 # --- Interfaz Principal ---
 st.markdown(f'<div class="main-header">{get_text("main_title")}</div>', unsafe_allow_html=True)
@@ -558,6 +567,7 @@ user_input = st.chat_input(get_text("placeholder"))
 if user_input:
     try:
         detected_lang_name = smart_language_detector(user_input, client_llm=None)
+        print(detected_lang_name)
         if detected_lang_name:
             target_lang = detected_lang_name
         else:
