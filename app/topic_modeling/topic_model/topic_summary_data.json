@@ -1,0 +1,342 @@
+[
+  {
+    "topic_id": 0,
+    "count": 15622,
+    "name": "0_krishna_indian_mumbai_india",
+    "top_words": [
+      "krishna",
+      "indian",
+      "mumbai",
+      "india",
+      "shah",
+      "singh",
+      "kumar",
+      "khan",
+      "vijay",
+      "lakshmi"
+    ]
+  },
+  {
+    "topic_id": 1,
+    "count": 15291,
+    "name": "1_mike_team_william_jason",
+    "top_words": [
+      "mike",
+      "team",
+      "william",
+      "jason",
+      "09",
+      "08",
+      "tony",
+      "nick",
+      "group",
+      "kevin"
+    ]
+  },
+  {
+    "topic_id": 2,
+    "count": 3605,
+    "name": "2_paris_france_madrid_french",
+    "top_words": [
+      "paris",
+      "france",
+      "madrid",
+      "french",
+      "alain",
+      "spain",
+      "laurent",
+      "juliette",
+      "napoleon",
+      "romeo"
+    ]
+  },
+  {
+    "topic_id": 3,
+    "count": 2253,
+    "name": "3_angeli_angel_stella_angels",
+    "top_words": [
+      "angeli",
+      "angel",
+      "stella",
+      "angels",
+      "show",
+      "allie",
+      "scene",
+      "alice",
+      "documentary",
+      "http"
+    ]
+  },
+  {
+    "topic_id": 4,
+    "count": 1751,
+    "name": "4_akira_samurai_shinichi_takashi",
+    "top_words": [
+      "akira",
+      "samurai",
+      "shinichi",
+      "takashi",
+      "yoshiko",
+      "nakamura",
+      "koichi",
+      "yuki",
+      "japan",
+      "yakuza"
+    ]
+  },
+  {
+    "topic_id": 5,
+    "count": 1589,
+    "name": "5_monkeys_gorilla_gorillas_monkey",
+    "top_words": [
+      "monkeys",
+      "gorilla",
+      "gorillas",
+      "monkey",
+      "apes",
+      "panther",
+      "darwin",
+      "dinosaur",
+      "robin",
+      "jungle"
+    ]
+  },
+  {
+    "topic_id": 6,
+    "count": 1236,
+    "name": "6_nazis_nazi_russians_germans",
+    "top_words": [
+      "nazis",
+      "nazi",
+      "russians",
+      "germans",
+      "vyacheslav",
+      "germany",
+      "stalin",
+      "vladimir",
+      "german",
+      "berlin"
+    ]
+  },
+  {
+    "topic_id": 7,
+    "count": 1012,
+    "name": "7_mermaids_surfers_pirates_mermaid",
+    "top_words": [
+      "mermaids",
+      "surfers",
+      "pirates",
+      "mermaid",
+      "pirate",
+      "surfer",
+      "sailor",
+      "survivors",
+      "shark",
+      "sailors"
+    ]
+  },
+  {
+    "topic_id": 8,
+    "count": 943,
+    "name": "8_bunny_rabbit_cartoon_rabbits",
+    "top_words": [
+      "bunny",
+      "rabbit",
+      "cartoon",
+      "rabbits",
+      "daffy",
+      "bugs",
+      "dawg",
+      "buzzard",
+      "devil",
+      "bryan"
+    ]
+  },
+  {
+    "topic_id": 9,
+    "count": 628,
+    "name": "9_werewolf_werewolves_wolves_wolfman",
+    "top_words": [
+      "werewolf",
+      "werewolves",
+      "wolves",
+      "wolfman",
+      "wolf",
+      "piglet",
+      "pigs",
+      "pig",
+      "bunny",
+      "beast"
+    ]
+  },
+  {
+    "topic_id": 10,
+    "count": 618,
+    "name": "10_egyptian_cairo_egypt_prince",
+    "top_words": [
+      "egyptian",
+      "cairo",
+      "egypt",
+      "prince",
+      "caliph",
+      "sinbad",
+      "moses",
+      "pharaoh",
+      "arabs",
+      "nile"
+    ]
+  },
+  {
+    "topic_id": 11,
+    "count": 615,
+    "name": "11_wizard_goblin_scarecrow_fairy",
+    "top_words": [
+      "wizard",
+      "goblin",
+      "scarecrow",
+      "fairy",
+      "monster",
+      "puppet",
+      "robin",
+      "rabbit",
+      "doo",
+      "witch"
+    ]
+  },
+  {
+    "topic_id": 12,
+    "count": 599,
+    "name": "12_christmas_santa_presents_holiday",
+    "top_words": [
+      "christmas",
+      "santa",
+      "presents",
+      "holiday",
+      "holidays",
+      "gifts",
+      "gift",
+      "reindeer",
+      "elf",
+      "thanksgiving"
+    ]
+  },
+  {
+    "topic_id": 13,
+    "count": 596,
+    "name": "13_jerry_goofy_cartoon_mickey",
+    "top_words": [
+      "jerry",
+      "goofy",
+      "cartoon",
+      "mickey",
+      "pete",
+      "pie",
+      "tom",
+      "dog",
+      "donald",
+      "pup"
+    ]
+  },
+  {
+    "topic_id": 14,
+    "count": 529,
+    "name": "14_dracula_vampires_vampire_vampirism",
+    "top_words": [
+      "dracula",
+      "vampires",
+      "vampire",
+      "vampirism",
+      "undead",
+      "vampiric",
+      "werewolf",
+      "buffy",
+      "darren",
+      "slayer"
+    ]
+  },
+  {
+    "topic_id": 15,
+    "count": 490,
+    "name": "15_princesses_dolls_dolly_doll",
+    "top_words": [
+      "princesses",
+      "dolls",
+      "dolly",
+      "doll",
+      "princess",
+      "dollhouse",
+      "fairy",
+      "lizzie",
+      "alice",
+      "mermaid"
+    ]
+  },
+  {
+    "topic_id": 16,
+    "count": 464,
+    "name": "16_spacecraft_spaceship_astronauts_astronaut",
+    "top_words": [
+      "spacecraft",
+      "spaceship",
+      "astronauts",
+      "astronaut",
+      "aliens",
+      "planets",
+      "alien",
+      "meteor",
+      "meteors",
+      "planet"
+    ]
+  },
+  {
+    "topic_id": 17,
+    "count": 373,
+    "name": "17_sitka_bateson_laurel_ollie",
+    "top_words": [
+      "sitka",
+      "bateson",
+      "laurel",
+      "ollie",
+      "frankie",
+      "jamison",
+      "larry",
+      "melbourne",
+      "laughton",
+      "mrs"
+    ]
+  },
+  {
+    "topic_id": 18,
+    "count": 307,
+    "name": "18_frankenstein_puppets_puppet_monster",
+    "top_words": [
+      "frankenstein",
+      "puppets",
+      "puppet",
+      "monster",
+      "humanoids",
+      "tomb",
+      "baron",
+      "creature",
+      "scorpion",
+      "robot"
+    ]
+  },
+  {
+    "topic_id": 19,
+    "count": 307,
+    "name": "19_superman_villains_reeve_comic",
+    "top_words": [
+      "superman",
+      "villains",
+      "reeve",
+      "comic",
+      "batman",
+      "joker",
+      "dracula",
+      "planet",
+      "robin",
+      "doomsday"
+    ]
+  }
+]

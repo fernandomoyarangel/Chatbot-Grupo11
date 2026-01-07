@@ -11,7 +11,7 @@ def build_doc_key(metadata, content):
 
 def load_topic_maps():
     project_root = Path(__file__).resolve().parents[2]
-    topic_dir = project_root / "data" / "topic_model"
+    topic_dir = project_root / "app" / "topic_modeling" / "topic_model"
     doc_topics_path = topic_dir / "doc_topics.json"
     topics_info_path = topic_dir / "topics_info.json"
 

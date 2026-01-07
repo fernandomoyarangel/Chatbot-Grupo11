@@ -447,6 +447,36 @@ def smart_language_detector(text, client_llm=None):
     print(f"DEBUG: Usando LLM para detectar idioma de: '{text[:30]}...'")
     return detect_language_with_llm(text)
 
+# --- Input de chat con Detección Automática ---
+prompt_to_process = None
+user_input = st.chat_input(get_text("placeholder"))
+
+# CASO A: Nuevo mensaje del usuario
+if user_input:
+    try:
+        detected_lang_name = smart_language_detector(user_input, client_llm=None)
+        print(detected_lang_name)
+        if detected_lang_name:
+            target_lang = detected_lang_name
+        else:
+            target_lang = st.session_state.language
+        if st.session_state.language != target_lang:
+            st.session_state.pending_language = target_lang
+            st.session_state.saved_prompt = user_input
+            st.rerun()
+        else:
+            prompt_to_process = user_input
+    except (LangDetectException, ImportError):
+        prompt_to_process = user_input
+
+# CASO B: Mensaje guardado tras recarga
+elif "saved_prompt" in st.session_state:
+    prompt_to_process = st.session_state.saved_prompt
+    del st.session_state.saved_prompt
+
+if prompt_to_process:
+    st.session_state.show_topics_modal = False
+
 def render_topics_modal():
     if st.session_state.topic_error:
         st.error(st.session_state.topic_error)
@@ -559,32 +589,7 @@ with chat_container:
                             st.session_state.pending_language = st.session_state.language
                             st.rerun()
 
-# --- Input de chat con Detección Automática ---
-prompt_to_process = None
-user_input = st.chat_input(get_text("placeholder"))
 
-# CASO A: Nuevo mensaje del usuario
-if user_input:
-    try:
-        detected_lang_name = smart_language_detector(user_input, client_llm=None)
-        print(detected_lang_name)
-        if detected_lang_name:
-            target_lang = detected_lang_name
-        else:
-            target_lang = st.session_state.language
-        if st.session_state.language != target_lang:
-            st.session_state.pending_language = target_lang
-            st.session_state.saved_prompt = user_input
-            st.rerun()
-        else:
-            prompt_to_process = user_input
-    except (LangDetectException, ImportError):
-        prompt_to_process = user_input
-
-# CASO B: Mensaje guardado tras recarga
-elif "saved_prompt" in st.session_state:
-    prompt_to_process = st.session_state.saved_prompt
-    del st.session_state.saved_prompt
 
 # --- Procesamiento del Mensaje ---
 if prompt_to_process:
