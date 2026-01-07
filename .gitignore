@@ -3,3 +3,4 @@ poetry.lock
 .env
 data/
 docs/
+app/topic_modeling/topic_model/embeddings.npy
