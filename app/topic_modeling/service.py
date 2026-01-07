@@ -69,9 +69,27 @@ def run_topic_modeling(
                     "document_count": doc_count,
                 }
             else:
-                print("--> El modelo existe pero faltan visualizaciones. Regenerando visuales...")
+                print("--> El modelo existe pero faltan visualizaciones. Regenerando sin recalcular embeddings...")
+                topic_model = BERTopic.load(str(model_dir))
+                topic_info = topic_model.get_topic_info()
+                topic_info.to_csv(out_path / TOPIC_INFO_NAME, index=False)
+                topic_count = int(len(topic_info))
 
-                pass 
+                fig = topic_model.visualize_topics()
+                plot_html = fig.to_html(include_plotlyjs="inline", full_html=False)
+                with open(out_path / VIS_FILENAME, "w", encoding="utf-8") as f:
+                    f.write(plot_html)
+
+                topics_summary = build_topic_summary(topic_model, top_n_topics=20, top_n_words=10)
+                with open(out_path / SUMMARY_FILENAME, "w", encoding="utf-8") as f:
+                    json.dump(topics_summary, f, ensure_ascii=True, indent=2)
+
+                return {
+                    "output_dir": str(out_path),
+                    "model_dir": str(model_dir),
+                    "topic_count": topic_count,
+                    "document_count": doc_count,
+                }
 
         except Exception as e:
             print(f"--> Error al verificar modelo existente ({e}). Se procederá a re-entrenar.")
