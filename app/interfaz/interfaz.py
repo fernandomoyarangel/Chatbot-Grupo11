@@ -588,6 +588,7 @@ elif "saved_prompt" in st.session_state:
 
 # --- Procesamiento del Mensaje ---
 if prompt_to_process:
+    st.session_state.show_topics_modal = False
     prompt = prompt_to_process
 
     st.session_state.history.append(("user", prompt))
