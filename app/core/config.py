@@ -3,7 +3,6 @@ class Settings:
 
     @staticmethod
     def get_prompt():
-        # --- PROMPT EN INGLÉS ---
         template_english = """
         SYSTEM INSTRUCTIONS:
         You are an expert movie assistant. Answer the user's question based EXCLUSIVELY on the context provided below without relying on your general knowledge.

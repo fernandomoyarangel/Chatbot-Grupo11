@@ -6,9 +6,9 @@ import json
 from dotenv import load_dotenv
 from app.agente.tools.rag_tools import get_vector_store
 import torch
-import numpy as np # Necesario para numpy load
+import numpy as np 
 
-# Nombres de archivos y directorios constantes
+
 MODEL_DIR_NAME = "bertopic_model"
 TOPIC_INFO_NAME = "topic_info.csv"
 VIS_FILENAME = "topic_visualization.html"
@@ -33,7 +33,7 @@ def run_topic_modeling(
     load_dotenv()
     ensure_chroma_path()
 
-    # 1. Definir rutas de salida
+
     out_path = get_output_dir(output_dir)
     model_dir = out_path / MODEL_DIR_NAME
     
@@ -101,7 +101,7 @@ def run_topic_modeling(
     embeddings_file = out_path / "embeddings.npy"
 
     vector_store = get_vector_store()
-    data = vector_store.get(include=["documents", "metadatas"]) # No pedimos embeddings a Chroma
+    data = vector_store.get(include=["documents", "metadatas"]) 
     documents = data.get("documents") or []
     metadatas = data.get("metadatas") or []
     
@@ -180,7 +180,6 @@ def run_topic_modeling(
         print("--> Cargando modelo existente para regenerar visuales o finalizar...")
         topic_model = BERTopic.load(str(model_dir))
     else:
-        # Instanciar y Entrenar nuevo
         print("--> Entrenando nuevo modelo BERTopic...")
         topic_model = BERTopic(
             embedding_model=embedding_model,
@@ -238,7 +237,7 @@ def run_topic_modeling(
         "document_count": int(len(documents)),
     }
 
-# Funciones auxiliares
+
 def load_topic_model(output_dir: Optional[Path] = None):
     from bertopic import BERTopic
     model_dir = get_output_dir(output_dir) / MODEL_DIR_NAME
