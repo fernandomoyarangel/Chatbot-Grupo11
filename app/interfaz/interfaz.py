@@ -52,7 +52,7 @@ TEXTS = {
         "analytics_title": "Analytics",
         "btn_topics_gen": "Generate Topics (BERTopic)",
         "btn_topics_vis": "Visualize Topics",
-        "info_text": "**Info:** I am your expert movie screenwriter. Ask me about directors, plots, or recommendations using RAG.",
+        "info_text": "**Info:** I am your expert movie screenwriter. Ask me about directors, plots, or recommendations. I'll answer based on my movie database, using RAG.",
         "footer": "© 2025 CineBot Productions",
         "main_title": "🎬 CineBot Expert",
         "sub_header": '"I\'m gonna make you an offer you can\'t refuse... answering your movie questions."',
@@ -82,7 +82,7 @@ TEXTS = {
         "analytics_title": "Analítica",
         "btn_topics_gen": "Generar tópicos (BERTopic)",
         "btn_topics_vis": "Visualizar tópicos",
-        "info_text": "**Info:** Soy tu guionista experto en cine. Pregúntame sobre directores, tramas, o recomendaciones utilizando RAG.",
+        "info_text": "**Info:** Soy tu guionista experto en cine. Pregúntame sobre directores, tramas, o recomendaciones. Responderé fundamentándome en mi base de datos de películas, utilizando RAG.",
         "footer": "© 2025 CineBot Producciones",
         "main_title": "🎬 CineBot Expert",
         "sub_header": '"Le haré una oferta que no podrá rechazar... responder sus dudas de cine."',
@@ -158,7 +158,7 @@ st.markdown("""
         border-left: 5px solid #E67E22;
     }
 
-    /* Sidebar */
+    /* Sidebar General */
     [data-testid="stSidebar"] {
         background-color: #4E342E;
         color: #EFEBE9;
@@ -170,12 +170,31 @@ st.markdown("""
         color: #D7CCC8;
     }
 
+    /* --- NUEVO: ESTILO PARA BOTONES DEL SIDEBAR --- */
+    /* Estado NORMAL: Fondo Marrón, Letras Claras */
+    [data-testid="stSidebar"] .stButton button {
+        background-color: #6D4C41; 
+        color: #FFFFFF;
+        border: 1px solid #8D6E63;
+        transition: all 0.3s ease;
+        width: 100%; /* Opcional: para que ocupen todo el ancho */
+    }
+
+    /* Estado HOVER: Fondo Claro, Letras Marrones */
+    [data-testid="stSidebar"] .stButton button:hover {
+        background-color: #FAF3E0;
+        color: #4E342E;
+        border: 1px solid #FAF3E0;
+        transform: scale(1.02);
+    }
+
     /* Input de chat */
     .stChatInputContainer {
         padding-bottom: 20px;
     }
 
-    /* ESTILO PARA BOTONES TRANSPARENTES (Feedback) */
+    /* ESTILO PARA BOTONES TRANSPARENTES (Feedback / Main Area) */
+    /* Usamos 'section.main' para asegurar que NO afecte al sidebar */
     section.main .stButton button {
         background-color: transparent !important;
         border: none !important;
@@ -216,7 +235,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 if "history" not in st.session_state:
