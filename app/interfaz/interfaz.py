@@ -160,7 +160,7 @@ st.markdown("""
         border-left: 5px solid #E67E22;
     }
 
-    /* Sidebar */
+    /* Sidebar General */
     [data-testid="stSidebar"] {
         background-color: #4E342E;
         color: #EFEBE9;
@@ -172,12 +172,31 @@ st.markdown("""
         color: #D7CCC8;
     }
 
+    /* --- NUEVO: ESTILO PARA BOTONES DEL SIDEBAR --- */
+    /* Estado NORMAL: Fondo Marrón, Letras Claras */
+    [data-testid="stSidebar"] .stButton button {
+        background-color: #6D4C41; 
+        color: #FFFFFF;
+        border: 1px solid #8D6E63;
+        transition: all 0.3s ease;
+        width: 100%; /* Opcional: para que ocupen todo el ancho */
+    }
+
+    /* Estado HOVER: Fondo Claro, Letras Marrones */
+    [data-testid="stSidebar"] .stButton button:hover {
+        background-color: #FAF3E0;
+        color: #4E342E;
+        border: 1px solid #FAF3E0;
+        transform: scale(1.02);
+    }
+
     /* Input de chat */
     .stChatInputContainer {
         padding-bottom: 20px;
     }
 
-    /* ESTILO PARA BOTONES TRANSPARENTES (Feedback) */
+    /* ESTILO PARA BOTONES TRANSPARENTES (Feedback / Main Area) */
+    /* Usamos 'section.main' para asegurar que NO afecte al sidebar */
     section.main .stButton button {
         background-color: transparent !important;
         border: none !important;
@@ -295,6 +314,7 @@ def show_summary_modal(title, content):
     else:
         st.info(f"**{title}**\n\n{content}")
 
+
 def get_topic_map():
     """
     Carga el JSON de tópicos y lo guarda en cache.
@@ -304,7 +324,7 @@ def get_topic_map():
 
     # Ajusta la ruta según tu estructura de carpetas real
     topics_path = project_root / "app" / "topic_modeling" / "topic_model" / "doc_topics.json"
-    
+
     if topics_path.exists():
         try:
             with open(topics_path, "r", encoding="utf-8") as f:
@@ -315,6 +335,7 @@ def get_topic_map():
             print(f"Error cargando topics: {e}")
             return {}
     return {}
+
 
 def find_topic_for_source(source_name):
     """
@@ -333,10 +354,10 @@ def find_topic_for_source(source_name):
         # Separamos el nombre del archivo del hash usando el último ':'
         # "StarWars.txt:12345" -> ["StarWars.txt", "12345"]
         parts = key.rsplit(':', 1)
-        
+
         if len(parts) > 0:
-            file_part = parts[0] # Esto es "52549_Star Wars Episode IV_ A New Hope.txt"
-            
+            file_part = parts[0]  # Esto es "52549_Star Wars Episode IV_ A New Hope.txt"
+
             # Comparamos si coincide con la fuente que viene del chat
             # Usamos 'in' por si hay pequeñas diferencias de ruta
             if source_name in file_part or file_part in source_name:
@@ -348,14 +369,14 @@ def find_topic_for_source(source_name):
     # Lógica inteligente:
     # 1. Contamos frecuencias
     counts = Counter(found_topics)
-    
+
     # 2. Si hay tópicos reales (distintos de -1), intentamos priorizarlos sobre el -1 (ruido)
     #    Por ejemplo, si tienes tres "-1" y dos "27", preferimos mostrar "27".
     real_topics = [t for t in found_topics if t != -1]
-    
+
     if real_topics:
         return Counter(real_topics).most_common(1)[0][0]
-    
+
     # 3. Si solo hay -1, devolvemos -1
     return counts.most_common(1)[0][0]
 
