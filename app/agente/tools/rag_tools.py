@@ -17,10 +17,9 @@ load_dotenv()
 
 def get_embeddings():
     """
-    Devuelve la funcion de embeddings. Por defecto usa HuggingFace
-    (all-MiniLM-L6-v2) para evitar depender de un servidor Ollama.
-    Si tienes Ollama levantado y el modelo cargado, define
-    EMBEDDINGS_BACKEND=ollama.
+    Construye el backend de embeddings segun variables de entorno.
+    Devuelve: instancia de embeddings compatible con LangChain.
+    Nota: por defecto usa HuggingFace; con EMBEDDINGS_BACKEND=ollama usa Ollama.
     """
     backend = os.getenv("EMBEDDINGS_BACKEND", "huggingface").lower()
     if backend == "ollama":
@@ -34,6 +33,8 @@ def get_embeddings():
 def get_vector_store() -> VectorStore:
     """
     Obtiene la conexion con la BD de embeddings usando ChromaDB.
+    Recibe: nada (lee CHROMA_PATH).
+    Devuelve: instancia VectorStore lista para busquedas.
     """
     embeddings = get_embeddings()
 
@@ -51,6 +52,11 @@ def get_vector_store() -> VectorStore:
 
 
 def retrieve_context_data(query: str, k: int = 20):
+    """
+    Recupera documentos relevantes y serializa el contexto para el prompt.
+    Recibe: query (la query del usuario), k (numero de documentos a recuperar).
+    Devuelve: (serialized, retrieved_docs).
+    """
     vector_store = get_vector_store()
     retrieved_docs = vector_store.max_marginal_relevance_search(
         query, 
@@ -81,12 +87,18 @@ def retrieve_context_data(query: str, k: int = 20):
 
 def get_rag_tools():
     """
-    Obtiene la lista de herramientas disponibles para el agente.
+    Define y devuelve las herramientas de RAG para el agente.
+    Recibe: nada.
+    Devuelve: lista de herramientas LangChain.
     """
 
     @tool(description="Recuperacion de contexto", response_format="content_and_artifact")
     def retrieve_context(query: str, config: RunnableConfig = None):
-        """Herramienta de recuperacion de informacion relevante desde Chroma."""
+        """
+        Herramienta LangChain que expone la recuperacion de contexto.
+        Recibe: query (str), config (RunnableConfig opcional).
+        Devuelve: (serialized, retrieved_docs).
+        """
         return retrieve_context_data(query=query, k=10)
 
     return [retrieve_context]

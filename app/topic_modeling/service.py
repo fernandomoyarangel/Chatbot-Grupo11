@@ -30,6 +30,22 @@ def run_topic_modeling(
     output_dir: Optional[Path] = None,
     language: str = "english",
 ) -> Dict[str, Any]:
+    """
+    Entrena (o reutiliza) un modelo BERTopic y genera artefactos asociados.
+
+    - Carga documentos desde el vector store.
+    - Calcula embeddings (con caché en .npy si existe).
+    - Entrena o carga un modelo BERTopic.
+    - Guarda: modelo, topic_info, doc_topics, visualización HTML y resumen JSON.
+
+    Args:
+        output_dir (Optional[Path]): Directorio opcional de salida.
+        language (str): Idioma del corpus (para lógica externa; por defecto "english").
+
+    Returns:
+        Dict[str, Any]: Rutas y métricas del proceso (output_dir, model_dir,
+        topic_count, document_count).
+    """
     load_dotenv()
     ensure_chroma_path()
 
@@ -239,6 +255,18 @@ def run_topic_modeling(
 
 
 def load_topic_model(output_dir: Optional[Path] = None):
+    """
+    Carga un modelo BERTopic previamente guardado.
+
+    Args:
+        output_dir (Optional[Path]): Directorio opcional donde buscar el modelo.
+
+    Returns:
+        BERTopic: Modelo cargado desde disco.
+
+    Raises:
+        FileNotFoundError: Si no existe el modelo guardado.
+    """
     from bertopic import BERTopic
     model_dir = get_output_dir(output_dir) / MODEL_DIR_NAME
     if not model_dir.exists():
@@ -246,6 +274,17 @@ def load_topic_model(output_dir: Optional[Path] = None):
     return BERTopic.load(str(model_dir))
 
 def build_topic_summary(topic_model, top_n_topics: int = 10, top_n_words: int = 10) -> List[Dict[str, Any]]:
+    """
+    Construye un resumen de tópicos (top palabras + conteos) a partir del modelo.
+
+    Args:
+        topic_model: Instancia de BERTopic ya entrenada/cargada.
+        top_n_topics (int): Número máximo de tópicos a incluir (excluye -1).
+        top_n_words (int): Número máximo de palabras por tópico.
+
+    Returns:
+        List[Dict[str, Any]]: Lista de tópicos con id, count, name y top_words.
+    """
     info = topic_model.get_topic_info()
     info = info[info["Topic"] != -1]
     
@@ -269,6 +308,22 @@ def build_topic_visualization(
     top_n_words: int = 10,
     output_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
+    """
+    Genera (o carga desde caché) la visualización HTML y el resumen de tópicos.
+
+    Si existen los archivos cacheados (HTML + JSON), los devuelve; si no,
+    carga el modelo y los reconstruye.
+
+    Args:
+        top_n_topics (int): Número de tópicos a incluir en el resumen.
+        top_n_words (int): Número de palabras por tópico.
+        output_dir (Optional[Path]): Directorio opcional de salida/lectura.
+
+    Returns:
+        Dict[str, Any]: Diccionario con:
+            - plot_html (str): HTML de la visualización.
+            - topics (list): Resumen de tópicos.
+    """
     out_path = get_output_dir(output_dir)
     html_path = out_path / VIS_FILENAME
     json_path = out_path / SUMMARY_FILENAME

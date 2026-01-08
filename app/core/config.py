@@ -1,8 +1,22 @@
 from langchain_core.prompts import PromptTemplate
 class Settings:
+    """
+    Contenedor de configuración y plantillas de prompts del sistema.
+    """
+
 
     @staticmethod
     def get_prompt():
+        """
+        Devuelve el prompt principal para el sistema RAG.
+
+        El prompt define reglas estrictas para responder únicamente
+        usando el contexto recuperado.
+
+        Returns:
+            PromptTemplate: Plantilla del prompt principal.
+        """
+
         template_english = """
         SYSTEM INSTRUCTIONS:
         You are an expert movie assistant. Answer the user's question based EXCLUSIVELY on the context provided below without relying on your general knowledge.
@@ -118,6 +132,16 @@ class Settings:
 
     @staticmethod
     def get_surprise_prompt():
+        """
+        Devuelve el prompt para generar datos curiosos sobre películas.
+
+        El modelo debe extraer un único dato interesante del contexto
+        y devolverlo en formato de curiosidad.
+
+        Returns:
+            PromptTemplate: Plantilla del prompt de curiosidades.
+        """
+
         template = """
         SYSTEM: You are a movie trivia generator, NOT a chatbot.
         TASK: Extract ONE interesting fact from the provided text (plot twist, cast detail, or event) and format it as a curiosity.

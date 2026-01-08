@@ -12,12 +12,12 @@ project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# ------------------------------------
+
 from app.core.evaluation_logger import log_human_feedback
 from app.agente.rag_service import get_llm_model
 from langchain_core.messages import HumanMessage
 
-# --- Configuración de la página ---
+
 st.set_page_config(
     page_title="CineBot Expert 🎬",
     page_icon="🍿",
@@ -25,7 +25,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- POOL DE PREGUNTAS ---
+
 INITIAL_SUGGESTIONS = {
     "English": [
         "Tell me about some movies that came out in 2008?",
@@ -43,7 +43,6 @@ INITIAL_SUGGESTIONS = {
     ]
 }
 
-# --- DICCIONARIO DE TRADUCCIONES ---
 TEXTS = {
     "English": {
         "sidebar_title": "Box Office & Settings",
@@ -115,7 +114,6 @@ def get_text(key):
     return TEXTS[lang].get(key, f"MISSING: {key}")
 
 
-# --- Estilos CSS Personalizados ---
 st.markdown("""
 <style>
     /* Fondo y tipografía general */
@@ -239,7 +237,6 @@ if "pending_language" in st.session_state:
     st.session_state.language = st.session_state.pending_language
     del st.session_state.pending_language
 
-# Estados para Tópicos
 if "topic_plot_html" not in st.session_state:
     st.session_state.topic_plot_html = None
 if "topic_topics" not in st.session_state:
@@ -664,7 +661,6 @@ with chat_container:
                     st.session_state.show_topics_modal = False
                     st.rerun()
 
-    # --- LOGICA: HISTORIAL EXISTENTE ---
     assistant_idx = 0
 
     for i, (role, text) in enumerate(st.session_state.history):
@@ -701,17 +697,19 @@ with chat_container:
 
                 with col_like:
                     if st.button("👍", key=f"like_hist_{i}"):
+                        st.session_state.show_topics_modal = False
                         log_human_feedback(st.session_state.history[i - 1][1] if i > 0 else "", text, rating=1)
                         st.toast("Guardado: 👍", icon="✅")
 
                 with col_dislike:
                     if st.button("👎", key=f"dislike_hist_{i}"):
+                        st.session_state.show_topics_modal = False
                         log_human_feedback(st.session_state.history[i - 1][1] if i > 0 else "", text, rating=0)
                         st.toast("Guardado: 👎", icon="📝")
 
                 assistant_idx += 1
 
-# --- Procesamiento del Mensaje ---
+
 if prompt_to_process:
     st.session_state.show_topics_modal = False
     prompt = prompt_to_process
@@ -771,11 +769,13 @@ if prompt_to_process:
 
         with col_like_curr:
             if st.button("👍", key="like_current"):
+                st.session_state.show_topics_modal = False
                 log_human_feedback(prompt, full_response, rating=1)
                 st.toast("Guardado: 👍", icon="✅")
 
         with col_dislike_curr:
             if st.button("👎", key="dislike_current"):
+                st.session_state.show_topics_modal = False
                 log_human_feedback(prompt, full_response, rating=0)
                 st.toast("Guardado: 👎", icon="📝")
 

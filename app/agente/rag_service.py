@@ -6,22 +6,32 @@ from langchain_core.prompts import PromptTemplate
 from .tools.rag_tools import retrieve_context_data
 from ..core.evaluation_logger import log_automated_metric
 from ..core.config import Settings
-# from .uc3m_llm import UC3MChatModel
 from .translation_service import TranslationService
 from app.core.utils import build_doc_key, load_topic_maps
 from app.agente.uc3m_llm import get_llm_model
 from pathlib import Path
 import random
 
-# @lru_cache(maxsize=None)
-# def get_llm_model():
-#     return UC3MChatModel(
-#         model="llama3.1:8b"   # o "qwen3:8b" segun lo que os indiquen
-#     )
-
 
 class RAGService:
+    """
+    Servicio principal de Retrieval-Augmented Generation (RAG) para consultas sobre las películas
+
+    Este servicio:
+    - Recupera contexto relevante desde una base documental.
+    - Genera respuestas mediante un LLM.
+    - Soporta consultas en inglés y español.
+    - Incluye fuentes, sugerencias de seguimiento y métricas automáticas.
+    """
+
     def __init__(self, idioma: str = "english", k: int = 20):
+        """
+        Inicializa el servicio RAG.
+
+        Args:
+            idioma (str): Idioma por defecto del servicio ("english" o "spanish").
+            k (int): Número máximo de documentos a recuperar del sistema de búsqueda.
+        """
         self.llm = get_llm_model()
         self.k = k
         self.prompt_template = Settings.get_prompt()
@@ -30,25 +40,58 @@ class RAGService:
         
 
     def _build_context(self, query: str):
-        # Recuperamos los documentos
+        """
+        Recupera y serializa el contexto relevante para una consulta dada.
+
+        Args:
+            query (str): Consulta del usuario ya normalizada (normalmente en inglés).
+
+        Returns:
+            Tuple[str, List[Document]]:
+                - Texto serializado del contexto recuperado.
+                - Lista de documentos originales recuperados.
+        """
         serialized_full, docs = retrieve_context_data(query=query, k=self.k)
         
         return serialized_full, docs
 
     def process_query(self, input: str, session_id: str, language: str = "english"):
+        """
+        Procesa una consulta del usuario utilizando un flujo RAG completo.
+
+        El flujo incluye:
+        - Traducción automática si la consulta está en español.
+        - Recuperación de documentos relevantes.
+        - Generación de respuesta mediante LLM.
+        - Selección y filtrado de fuentes.
+        - Generación de sugerencias de seguimiento.
+        - Registro de métricas automáticas.
+
+        Args:
+            input (str): Consulta original del usuario.
+            session_id (str): Identificador de sesión para trazabilidad.
+            language (str): Idioma de la consulta ("english" o "spanish").
+
+        Returns:
+            dict: Diccionario con la respuesta estructurada:
+                - role (str): Rol del mensaje ("assistant").
+                - content (str): Respuesta generada por el modelo.
+                - sources (list): Lista de fuentes documentales utilizadas.
+                - suggestions (list): Preguntas sugeridas de seguimiento.
+        """
         start_time = time.time()
         doc_topics, topics_info = load_topic_maps()
         
-        # Step 1: Translate question if in Spanish mode
+
         original_input = input
         if language == "spanish":
             input = self.translation_service.translate_es_to_en(input)
             print(f"\n{'='*70}\nTRANSLATION DEBUG\nOriginal: {original_input}\nTranslated: {input}\n{'='*70}\n")
         
-        # Step 2: Build context
+
         serialized, docs = self._build_context(input)
         
-        # Step 3: Fallback if no docs
+
         if not docs:
             no_info_message = "I am sorry, I could not find any information about that in the movie database."
             if language == "spanish":
@@ -60,7 +103,7 @@ class RAGService:
                 "suggestions": []
             }
 
-        # Step 4: Generate prompt (Direct generation in target language)
+
         if language == "spanish":
             lang_instruction = (
                 "OUTPUT INSTRUCTION: The user is asking in Spanish. "
@@ -76,17 +119,16 @@ class RAGService:
             language_instruction=lang_instruction
         )
         
-        # Al invocar esto, uc3m_llm.py ya limpia el <think> internamente
+ 
         response_obj = self.llm.invoke(prompt_text)
 
-        # Step 5: Extract answer text (Ya viene limpio)
+
         if hasattr(response_obj, 'content'):
             answer_text = response_obj.content
         else:
             answer_text = str(response_obj)
         
 
-        # --- FILTRADO INTELIGENTE DE FUENTES ---
         final_docs = []
         answer_lower = answer_text.lower()
         query_lower = original_input.lower()
@@ -95,11 +137,11 @@ class RAGService:
             meta = doc.metadata or {}
             movie_title = str(meta.get("name", "")).lower()
             
-            # REGLA A: Título en respuesta
+
             if movie_title and movie_title in answer_lower:
                 final_docs.append(doc)
                 continue
-            # REGLA B: Título en pregunta
+
             if movie_title and movie_title in query_lower:
                 final_docs.append(doc)
                 continue
@@ -107,7 +149,7 @@ class RAGService:
         if not final_docs and docs:
             final_docs = docs[:3]
 
-        # 7. CONSTRUCCIÓN DE SOURCES
+
         sources = []
         seen_sources = set()
 
@@ -126,7 +168,6 @@ class RAGService:
                 })
                 seen_sources.add(source_name)
 
-        # 8. DETECCIÓN NEGATIVA
         negative_markers = [
             "I am sorry, I cannot find", "Lo siento, no puedo encontrar",
             "no he encontrado información", "cannot find that information",
@@ -141,7 +182,7 @@ class RAGService:
         else:
             suggestions = self._generate_suggestions(answer_text, serialized, input, language)
 
-        # 9. LOGS
+
         end_time = time.time()
         log_automated_metric(
             question=original_input,
@@ -160,28 +201,36 @@ class RAGService:
 
     def summarize_document(self, filename: str, language: str = "english") -> str:
         """
-        Lee el archivo completo de data/source_docs y genera un resumen.
+        Genera un resumen estructurado de un documento completo de la base de datos.
+
+        El documento se lee desde la carpeta `data/source_docs` y se trunca
+        automáticamente si excede la longitud máxima permitida por el modelo.
+
+        Args:
+            filename (str): Nombre del archivo fuente a resumir.
+            language (str): Idioma del resumen ("english" o "spanish").
+
+        Returns:
+            str: Resumen generado del documento o mensaje de error en caso de fallo.
         """
         try:
-            # 1. Construir la ruta al archivo
-            # Asumimos que rag_service.py está en app/agente/, así que subimos 2 niveles para llegar a la raíz
+
             project_root = Path(__file__).resolve().parents[2]
             file_path = project_root / "data" / "source_docs" / filename
 
-            # 2. Verificar existencia
+
             if not file_path.exists():
                 return f"Error: No se encuentra el archivo fuente original ({filename})."
 
-            # 3. Leer contenido
+
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 full_text = f.read()
 
-            # 4. TRUNCADO DE SEGURIDAD (IMPORTANTE)
+
                 max_chars = 25000
             if len(full_text) > max_chars:
                 full_text = full_text[:max_chars] + "\n... [Texto truncado por longitud] ..."
 
-            # 5. Crear Prompt
             if language.lower() == "spanish":
                 prompt = (
                     "Eres un experto en cine. A continuación se presenta el contenido de un documento sobre una película. "
@@ -195,7 +244,6 @@ class RAGService:
                     f"DOCUMENT:\n{full_text}\n\nSUMMARY:"
                 )
 
-            # 6. Invocar LLM
             response_obj = self.llm.invoke(prompt)
 
             if hasattr(response_obj, 'content'):
@@ -206,7 +254,23 @@ class RAGService:
             return f"Error al procesar el archivo: {str(e)}"
 
     def _generate_suggestions(self, answer_text: str, context_text: str, question_text: str, language: str) -> list:
-        """Genera 2 preguntas cortas de seguimiento basadas en el contexto y la pregunta original."""
+        """
+        Genera preguntas de seguimiento basadas en el contexto recuperado.
+
+        Las preguntas:
+        - Están relacionadas con el tema global del contexto.
+        - Son respondibles usando exclusivamente el contexto disponible.
+        - Se limitan a dos preguntas breves.
+
+        Args:
+            answer_text (str): Respuesta generada por el LLM.
+            context_text (str): Contexto textual utilizado en la generación.
+            question_text (str): Pregunta original del usuario.
+            language (str): Idioma de salida ("english" o "spanish").
+
+        Returns:
+            list: Lista de exactamente 2 preguntas sugeridas (si es posible).
+        """
         try:
             safe_context = context_text[:3000]
 
@@ -238,11 +302,10 @@ class RAGService:
             response = self.llm.invoke(prompt)
             text = response.content if hasattr(response, 'content') else str(response)
 
-            # Limpiar y filtrar
             suggestions = [line.strip() for line in text.split('\n') if line.strip()]
 
             clean_suggestions = []
-            for s in suggestions[:2]:  # Máximo 2
+            for s in suggestions[:2]: 
                 clean_s = s.lstrip("1234567890.-• ").strip()
                 if clean_s:
                     clean_suggestions.append(clean_s)
@@ -253,43 +316,54 @@ class RAGService:
             return []
 
     def get_curiosity(self, language: str = "english") -> str:
-        """Genera un dato curioso aleatorio buscando en la base de datos."""
+        """
+        Genera un dato curioso aleatorio sobre películas utilizando el sistema RAG.
+
+        El método:
+        - Selecciona un término de búsqueda aleatorio.
+        - Recupera contexto relevante.
+        - Genera un dato curioso mediante un prompt específico.
+        - Traduce y adapta el resultado al idioma solicitado.
+
+        Args:
+            language (str): Idioma del dato curioso ("english" o "spanish").
+
+        Returns:
+            str: Dato curioso generado o mensaje de error si no hay resultados.
+        """
         try:
-            # 1. Palabras clave (igual que antes)
+
             search_terms = ["plot twist", "ending", "character", "death", "wedding", "war", "love", "secret", "family"]
             random_term = random.choice(search_terms)
 
-            # 2. Contexto (igual que antes)
+
             serialized_context, docs = retrieve_context_data(query=random_term, k=3)
 
             if not docs:
                 return "No he encontrado cintas en la filmoteca hoy."
 
-            # 3. Invocar LLM
+
             prompt_text = self.surprise_prompt.format(context=serialized_context)
             response_obj = self.llm.invoke(prompt_text)
 
             fact_text = response_obj.content if hasattr(response_obj, 'content') else str(response_obj)
 
-            # --- LIMPIEZA DE RESPUESTA (NUEVO) ---
-            # Quitamos comillas extra, espacios y posibles introducciones que se hayan colado
+
             fact_text = fact_text.strip().strip('"').strip("'")
 
-            # Si el modelo sigue diciendo "Here is a detail:", lo cortamos a la fuerza
+
             if ":" in fact_text[:20]:
                 fact_text = fact_text.split(":", 1)[1].strip()
 
-            # 4. Traducción y Formato Final
             if language == "spanish":
                 fact_text = self.translation_service.translate_en_to_es(fact_text)
 
-                # Normalizamos el inicio para que quede perfecto
-                # Quitamos variantes para unificar
+
                 lower_fact = fact_text.lower()
                 if lower_fact.startswith("sabías que"):
-                    fact_text = "¿Sabías que" + fact_text[10:]  # Reconstruimos con interrogación si falta
+                    fact_text = "¿Sabías que" + fact_text[10:] 
                 elif lower_fact.startswith("¿sabías que"):
-                    pass  # Ya está bien
+                    pass  
                 else:
                     fact_text = "¿Sabías que... " + fact_text
 
