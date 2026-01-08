@@ -11,7 +11,7 @@ from langchain_core.vectorstores import VectorStore
 from langchain.tools import tool
 from langchain_core.runnables import RunnableConfig
 
-# Carga variables de entorno (.env) antes de crear embeddings o abrir Chroma
+
 load_dotenv()
 
 
@@ -43,7 +43,6 @@ def get_vector_store() -> VectorStore:
     )
 
     vector_store = Chroma(
-        # collection_name="movie_rag",  <--- BORRA O COMENTA ESTA LÍNEA
         embedding_function=embeddings,
         persist_directory=persist_directory,
     )
@@ -59,13 +58,12 @@ def retrieve_context_data(query: str, k: int = 20):
         fetch_k=50, 
         lambda_mult=0.5 
     )
-    # Mapeo para que coincida con el vocabulario del Prompt
+
     type_map = {
         "specs": "TECHNICAL SPECS",
         "plot": "PLOT FRAGMENT"
     }
 
-    # --- CAMBIO A INGLÉS ---
     serialized = "\n\n".join(
         (
             f"CONTENT BLOCK:\n"
@@ -77,7 +75,6 @@ def retrieve_context_data(query: str, k: int = 20):
         )
         for doc in retrieved_docs
     )
-    # -----------------------
 
     return serialized, retrieved_docs
 

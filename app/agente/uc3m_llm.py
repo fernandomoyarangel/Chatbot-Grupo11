@@ -9,6 +9,8 @@ from langchain_core.outputs import ChatGeneration, ChatResult
 from dotenv import load_dotenv
 from app.core.config import settings
 
+from functools import lru_cache
+
 
 
 UC3M_URL = settings.UC3M_URL
@@ -54,9 +56,8 @@ class UC3MChatModel(BaseChatModel):
         clean_text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=clean_text))])
 
-# --- FUNCIÓN FACTORY (Para usar en rag_service.py) ---
+@lru_cache(maxsize=None)
 def get_llm_model():
-    # Aquí instanciamos el modelo forzando la temperatura a 0
     return UC3MChatModel(
         model=settings.DEFAULT_MODEL,
         temperature=0.5 

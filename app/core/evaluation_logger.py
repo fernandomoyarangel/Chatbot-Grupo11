@@ -2,7 +2,6 @@ import csv
 from datetime import datetime
 from pathlib import Path
 
-# Rutas a los archivos de logs en la carpeta data/
 BASE_DIR = Path(__file__).resolve().parents[2] / "data"
 AUTO_LOG_FILE = BASE_DIR / "rag_automated_log.csv"
 HUMAN_LOG_FILE = BASE_DIR / "human_feedback.csv"
@@ -20,7 +19,7 @@ def log_automated_metric(question, answer, time_taken, is_negative_answer, sourc
             datetime.now().isoformat(),
             question,
             f"{time_taken:.2f}",
-            not is_negative_answer, # True si encontró info (Cobertura)
+            not is_negative_answer, 
             source_count
         ])
 

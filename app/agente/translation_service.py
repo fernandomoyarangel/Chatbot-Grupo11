@@ -1,10 +1,3 @@
-"""
-Translation Service for Spanish-English bidirectional translation.
-
-Uses Helsinki-NLP OPUS-MT models for high-quality translation between Spanish and English.
-Models are loaded lazily and cached in memory for performance.
-"""
-
 from functools import lru_cache
 from typing import Optional
 import logging

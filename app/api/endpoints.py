@@ -18,7 +18,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     session_id: str
-    answer: dict  # contiene content, role, y sources
+    answer: dict  
 
 
 
@@ -100,12 +100,11 @@ class SummaryResponse(BaseModel):
 @router.post("/summary", response_model=SummaryResponse)
 def get_summary(req: SummaryRequest):
     try:
-        # Usamos la variable 'rag' que ya tienes definida arriba en este archivo
         summary_text = rag.summarize_document(filename=req.filename, language=req.language)
         return SummaryResponse(summary=summary_text)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
-# -------------------
+
 @router.get("/health")
 def health():
     return {"status": "ok"}
@@ -119,7 +118,6 @@ class SurpriseResponse(BaseModel):
 @router.post("/surprise", response_model=SurpriseResponse)
 def get_surprise(req: SurpriseRequest):
     try:
-        # Usamos la instancia 'rag' que ya tienes creada en este archivo
         text = rag.get_curiosity(language=req.language)
         return SurpriseResponse(curiosity=text)
     except Exception as exc:

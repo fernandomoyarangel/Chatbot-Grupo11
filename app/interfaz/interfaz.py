@@ -219,24 +219,22 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Variables de Entorno ---
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
-# --- Gestión del Estado (Session State) ---
 if "history" not in st.session_state:
     st.session_state.history = []
 
 if "language" not in st.session_state:
     st.session_state.language = "English"
 
-# [CORRECCIÓN] Inicializamos el estado para las sugerencias aleatorias
+
 if "random_suggestions" not in st.session_state:
     st.session_state.random_suggestions = []
 
 if "suggestions_lang" not in st.session_state:
     st.session_state.suggestions_lang = ""
 
-# Lógica para aplicar cambio de idioma pendiente (RERUN TRICK)
+
 if "pending_language" in st.session_state:
     st.session_state.language = st.session_state.pending_language
     del st.session_state.pending_language
@@ -271,17 +269,13 @@ def initialize_random_suggestions():
 def clear_history():
     st.session_state.history = []
     st.session_state.sources_history = []
-    # [IMPORTANTE] Al borrar historial, forzamos nuevas sugerencias llamando a la función
     initialize_random_suggestions()
 
 
-# --- Inicialización Única al cargar la página ---
-# Si la lista está vacía o el idioma cambió respecto a lo guardado, generamos.
+
 if not st.session_state.random_suggestions or st.session_state.suggestions_lang != st.session_state.language:
     initialize_random_suggestions()
 
-
-# --- Funciones Auxiliares ---
 def show_summary_modal(title, content):
     if hasattr(st, "dialog"):
         @st.dialog(title)
@@ -302,7 +296,7 @@ def get_topic_map():
     if "doc_topics_map" in st.session_state:
         return st.session_state.doc_topics_map
 
-    # Ajusta la ruta según tu estructura de carpetas real
+
     topics_path = project_root / "app" / "topic_modeling" / "topic_model" / "doc_topics.json"
     
     if topics_path.exists():
@@ -325,38 +319,33 @@ def find_topic_for_source(source_name):
     if not mapping or not source_name:
         return "N/A"
 
-    # Lista para guardar los tópicos encontrados para este archivo
+
     found_topics = []
 
-    # Iteramos sobre todas las claves del JSON (ej: "StarWars.txt:Hash")
+
     for key, topic_id in mapping.items():
-        # Separamos el nombre del archivo del hash usando el último ':'
-        # "StarWars.txt:12345" -> ["StarWars.txt", "12345"]
+
         parts = key.rsplit(':', 1)
         
         if len(parts) > 0:
-            file_part = parts[0] # Esto es "52549_Star Wars Episode IV_ A New Hope.txt"
+            file_part = parts[0]
             
-            # Comparamos si coincide con la fuente que viene del chat
-            # Usamos 'in' por si hay pequeñas diferencias de ruta
+
             if source_name in file_part or file_part in source_name:
                 found_topics.append(topic_id)
 
     if not found_topics:
         return "N/A"
 
-    # Lógica inteligente:
-    # 1. Contamos frecuencias
+
     counts = Counter(found_topics)
     
-    # 2. Si hay tópicos reales (distintos de -1), intentamos priorizarlos sobre el -1 (ruido)
-    #    Por ejemplo, si tienes tres "-1" y dos "27", preferimos mostrar "27".
+
     real_topics = [t for t in found_topics if t != -1]
     
     if real_topics:
         return Counter(real_topics).most_common(1)[0][0]
     
-    # 3. Si solo hay -1, devolvemos -1
     return counts.most_common(1)[0][0]
 
 
@@ -370,7 +359,7 @@ def render_sources_with_summary(sources, unique_key_suffix):
             col1, col2 = st.columns([0.75, 0.25])
             src_name = source.get("source", "Unknown")
 
-            #  Intentamos leer si ya viene el ID del topico (por si acaso)
+
             topic_val = source.get('topic_id')
 
             if not topic_val or topic_val == "N/A":
@@ -429,9 +418,9 @@ def dedupe_sources(sources):
     return result
 
 
-# --- Sidebar ---
+
 with st.sidebar:
-    # 1. CABECERA
+
     col_img, col_txt = st.columns([0.35, 0.65])
 
     with col_img:
@@ -445,18 +434,19 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-    # 2. SEPARADOR PERSONALIZADO
+
     st.markdown(
         "<div style='margin-top: -15px; margin-bottom: 10px; border-top: 1px solid #8D6E63;'></div>",
         unsafe_allow_html=True
     )
 
-    # 3. BOTONES DE ACCIÓN
+ 
     if st.button(get_text("btn_reset"), width="stretch"):
         clear_history()
         st.rerun()
 
     if st.button(get_text("btn_surprise"), width="stretch"):
+        st.session_state.show_topics_modal = False  
         with st.spinner("🎲 ..."):
             try:
                 lang_map = {"English": "english", "Español": "spanish"}
@@ -475,11 +465,11 @@ with st.sidebar:
             except Exception as e:
                 st.error(f"Conn: {e}")
 
-    # 4. IDIOMA
+
     st.markdown(f"**{get_text('lang_label')}**")
     st.selectbox("Lang", ["English", "Español"], key="language", label_visibility="collapsed")
 
-    # 5. ANALÍTICA
+
     st.markdown(f"**{get_text('analytics_title')}**")
 
     if st.button(get_text("btn_topics_gen"), width="stretch"):
@@ -509,7 +499,7 @@ with st.sidebar:
     st.caption(get_text("info_text"))
     st.caption(get_text("footer"))
 
-# --- Interfaz Principal ---
+
 st.markdown(f'<div class="main-header">{get_text("main_title")}</div>', unsafe_allow_html=True)
 st.markdown(f'<div class="sub-header">{get_text("sub_header")}</div>', unsafe_allow_html=True)
 
@@ -554,11 +544,11 @@ def smart_language_detector(text, client_llm=None):
     return detect_language_with_llm(text)
 
 
-# --- Input de chat con Detección Automática ---
+
 prompt_to_process = None
 user_input = st.chat_input(get_text("placeholder"))
 
-# CASO A: Nuevo mensaje del usuario
+
 if user_input:
     try:
         detected_lang_name = smart_language_detector(user_input, client_llm=None)
@@ -576,7 +566,7 @@ if user_input:
     except (LangDetectException, ImportError):
         prompt_to_process = user_input
 
-# CASO B: Mensaje guardado tras recarga
+
 elif "saved_prompt" in st.session_state:
     prompt_to_process = st.session_state.saved_prompt
     del st.session_state.saved_prompt
@@ -642,14 +632,10 @@ if st.session_state.show_topics_modal:
     else:
         render_topics_modal()
 
-# Contenedor para el historial de chat
+
 chat_container = st.container()
 
 with chat_container:
-    # --- LOGICA: PANTALLA INICIAL (Historial Vacío) ---
-    # [CORRECCIÓN APLICADA AQUÍ]
-    # Se añade 'and not prompt_to_process' para que desaparezcan
-    # si hay una pregunta esperando ser respondida.
     if not st.session_state.history and not prompt_to_process:
         st.markdown(
             f"""
@@ -662,6 +648,7 @@ with chat_container:
         )
 
         if st.session_state.random_suggestions:
+            st.session_state.show_topics_modal = False
             st.write("")
             st.markdown(
                 f"<div style='text-align:center; color:#8D6E63; margin-bottom:15px;'><i>{get_text('init_sugg_label')}</i></div>",
@@ -674,6 +661,7 @@ with chat_container:
                 if cols_list[idx].button(suggestion, key=f"init_sugg_{idx}"):
                     st.session_state.saved_prompt = suggestion
                     st.session_state.pending_language = st.session_state.language
+                    st.session_state.show_topics_modal = False
                     st.rerun()
 
     # --- LOGICA: HISTORIAL EXISTENTE ---
@@ -705,6 +693,7 @@ with chat_container:
                         if scols[idx_s].button(sug, key=f"sugg_{i}_{idx_s}"):
                             st.session_state.saved_prompt = sug
                             st.session_state.pending_language = st.session_state.language
+                            st.session_state.show_topics_modal = False 
                             st.rerun()
 
                 st.write("---")
@@ -774,6 +763,7 @@ if prompt_to_process:
                 if cols[i].button(suggestion, key=f"sugg_curr_{i}"):
                     st.session_state.saved_prompt = suggestion
                     st.session_state.pending_language = st.session_state.language
+                    st.session_state.show_topics_modal = False  
                     st.rerun()
 
         st.write("---")
