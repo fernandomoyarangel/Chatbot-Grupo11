@@ -3,7 +3,9 @@ import sys
 import requests
 import random
 import streamlit as st
+import json
 from langdetect import detect, DetectorFactory, LangDetectException
+from collections import Counter
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -293,6 +295,70 @@ def show_summary_modal(title, content):
     else:
         st.info(f"**{title}**\n\n{content}")
 
+def get_topic_map():
+    """
+    Carga el JSON de tópicos y lo guarda en cache.
+    """
+    if "doc_topics_map" in st.session_state:
+        return st.session_state.doc_topics_map
+
+    # Ajusta la ruta según tu estructura de carpetas real
+    topics_path = project_root / "app" / "topic_modeling" / "topic_model" / "doc_topics.json"
+    
+    if topics_path.exists():
+        try:
+            with open(topics_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                st.session_state.doc_topics_map = data
+                return data
+        except Exception as e:
+            print(f"Error cargando topics: {e}")
+            return {}
+    return {}
+
+def find_topic_for_source(source_name):
+    """
+    Encuentra el tópico para un archivo, manejando el formato 'Archivo:Hash'.
+    Elige el tópico más común entre los fragmentos (chunks) de ese archivo.
+    """
+    mapping = get_topic_map()
+    if not mapping or not source_name:
+        return "N/A"
+
+    # Lista para guardar los tópicos encontrados para este archivo
+    found_topics = []
+
+    # Iteramos sobre todas las claves del JSON (ej: "StarWars.txt:Hash")
+    for key, topic_id in mapping.items():
+        # Separamos el nombre del archivo del hash usando el último ':'
+        # "StarWars.txt:12345" -> ["StarWars.txt", "12345"]
+        parts = key.rsplit(':', 1)
+        
+        if len(parts) > 0:
+            file_part = parts[0] # Esto es "52549_Star Wars Episode IV_ A New Hope.txt"
+            
+            # Comparamos si coincide con la fuente que viene del chat
+            # Usamos 'in' por si hay pequeñas diferencias de ruta
+            if source_name in file_part or file_part in source_name:
+                found_topics.append(topic_id)
+
+    if not found_topics:
+        return "N/A"
+
+    # Lógica inteligente:
+    # 1. Contamos frecuencias
+    counts = Counter(found_topics)
+    
+    # 2. Si hay tópicos reales (distintos de -1), intentamos priorizarlos sobre el -1 (ruido)
+    #    Por ejemplo, si tienes tres "-1" y dos "27", preferimos mostrar "27".
+    real_topics = [t for t in found_topics if t != -1]
+    
+    if real_topics:
+        return Counter(real_topics).most_common(1)[0][0]
+    
+    # 3. Si solo hay -1, devolvemos -1
+    return counts.most_common(1)[0][0]
+
 
 def render_sources_with_summary(sources, unique_key_suffix):
     """Muestra fuentes con botón de resumen usando el diccionario de idiomas."""
@@ -304,9 +370,15 @@ def render_sources_with_summary(sources, unique_key_suffix):
             col1, col2 = st.columns([0.75, 0.25])
             src_name = source.get("source", "Unknown")
 
+            #  Intentamos leer si ya viene el ID del topico (por si acaso)
+            topic_val = source.get('topic_id')
+
+            if not topic_val or topic_val == "N/A":
+                topic_val = find_topic_for_source(src_name)
+
             with col1:
                 st.markdown(f"**Source:** {src_name}")
-                st.caption(f"Topic: {source.get('topic_id', 'N/A')}")
+                st.caption(f"Topic: {topic_val}")
 
             with col2:
                 btn_label = get_text("btn_summarize")

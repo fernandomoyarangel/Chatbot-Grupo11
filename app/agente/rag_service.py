@@ -30,48 +30,29 @@ class RAGService:
         
 
     def _build_context(self, query: str):
-        # Recuperamos los documentos (k=25 sigue siendo buena idea para buscar, pero no para enviar todo)
+        # Recuperamos los documentos
         serialized_full, docs = retrieve_context_data(query=query, k=self.k)
-        # --- NUEVO: LIMITADOR DE CONTEXTO ---
-        # Un modelo estándar de 8k tokens acepta ~30,000 caracteres.
-        # Uno de 4k tokens acepta ~15,000.
-        # Por seguridad, cortamos a 18,000 caracteres para asegurar que entra la pregunta.
-        MAX_CONTEXT_CHARS = 18000 
-        
-        # if len(serialized_full) > MAX_CONTEXT_CHARS:
-        #     # Cortamos y añadimos aviso
-        #     serialized_safe = serialized_full[:MAX_CONTEXT_CHARS] + "\n... [CONTEXT TRUNCATED] ..."
-        #     print(f"⚠️ Contexto truncado: {len(serialized_full)} -> {len(serialized_safe)} chars")
-        #     return serialized_safe, docs
         
         return serialized_full, docs
 
     def process_query(self, input: str, session_id: str, language: str = "english"):
         start_time = time.time()
         doc_topics, topics_info = load_topic_maps()
+        
         # Step 1: Translate question if in Spanish mode
         original_input = input
         if language == "spanish":
             input = self.translation_service.translate_es_to_en(input)
-            # Log translation for debugging
-            print(f"\n{'='*70}")
-            print(f"TRANSLATION DEBUG")
-            print(f"{'='*70}")
-            print(f"Original (ES): {original_input}")
-            print(f"Translated (EN): {input}")
-            print(f"{'='*70}\n")
+            print(f"\n{'='*70}\nTRANSLATION DEBUG\nOriginal: {original_input}\nTranslated: {input}\n{'='*70}\n")
         
-        # Step 2: Build context using (possibly translated) query
+        # Step 2: Build context
         serialized, docs = self._build_context(input)
         
-        # Step 3: Fallback message if no documents found
+        # Step 3: Fallback if no docs
         if not docs:
             no_info_message = "I am sorry, I could not find any information about that in the movie database."
-            
-            # Translate fallback message if in Spanish mode
             if language == "spanish":
                 no_info_message = self.translation_service.translate_en_to_es(no_info_message)
-            
             return {
                 "role": "assistant",
                 "content": no_info_message,
@@ -79,88 +60,89 @@ class RAGService:
                 "suggestions": []
             }
 
-        # Step 4: Generate prompt and invoke LLM (always in English)
-        prompt_text = self.prompt_template.format(context=serialized, question=input)
+        # Step 4: Generate prompt (Direct generation in target language)
+        if language == "spanish":
+            lang_instruction = (
+                "OUTPUT INSTRUCTION: The user is asking in Spanish. "
+                "Answer ONLY in Spanish. Translate the information from the context naturally. "
+                "Maintain Markdown formatting (lists, bolding) strictly."
+            )
+        else:
+            lang_instruction = "Answer in English."
+
+        prompt_text = self.prompt_template.format(
+            context=serialized, 
+            question=input, 
+            language_instruction=lang_instruction
+        )
+        
+        # Al invocar esto, uc3m_llm.py ya limpia el <think> internamente
         response_obj = self.llm.invoke(prompt_text)
 
-        # Step 5: Extract answer text
+        # Step 5: Extract answer text (Ya viene limpio)
         if hasattr(response_obj, 'content'):
             answer_text = response_obj.content
         else:
             answer_text = str(response_obj)
         
-        # Step 6: Translate answer back to Spanish if needed
-        if language == "spanish":
-            answer_text = self.translation_service.translate_en_to_es(answer_text)
 
-        # Objetivo: Eliminar documentos "ruido" que trajo el algoritmo MMR pero que 
-        # no tienen nada que ver con la respuesta generada.
-        
+        # --- FILTRADO INTELIGENTE DE FUENTES ---
         final_docs = []
         answer_lower = answer_text.lower()
         query_lower = original_input.lower()
         
         for doc in docs:
             meta = doc.metadata or {}
-            # Obtenemos el título de la película del metadato
             movie_title = str(meta.get("name", "")).lower()
             
-            # REGLA A: Si el título de la peli aparece en la RESPUESTA del bot, es relevante.
+            # REGLA A: Título en respuesta
             if movie_title and movie_title in answer_lower:
                 final_docs.append(doc)
                 continue
-                
-            # REGLA B: Si el título de la peli estaba en la PREGUNTA del usuario, es relevante.
+            # REGLA B: Título en pregunta
             if movie_title and movie_title in query_lower:
                 final_docs.append(doc)
                 continue
         
-        # FALLBACK: Si el filtro fue muy estricto y borró todo (pero el bot respondió algo),
-        # devolvemos los 3 primeros documentos originales por seguridad.
         if not final_docs and docs:
             final_docs = docs[:3]
 
-        # 7. CONSTRUCCIÓN DE LA LISTA DE SOURCES
+        # 7. CONSTRUCCIÓN DE SOURCES
         sources = []
-        seen_sources = set() # Set para evitar duplicados exactos de archivo
+        seen_sources = set()
 
         for doc in final_docs:
             meta = doc.metadata or {}
             source_name = meta.get("source", "Unknown")
-            doc_key = build_doc_key(meta, doc.page_content) # Para enlazar con tópicos
+            doc_key = build_doc_key(meta, doc.page_content)
             
             if source_name not in seen_sources:
                 sources.append({
                     "source": source_name,
-                    "content": doc.page_content, # Útil para el botón "Resumir" del frontend
-                    "topic": str(doc_topics.get(doc_key, "Unknown")), # Si tienes Topic Modeling activo
+                    "content": doc.page_content,
+                    "topic": str(doc_topics.get(doc_key, "Unknown")),
                     "box_office": meta.get("box_office", "N/A"),
                     "year": meta.get("year", "N/A")
                 })
                 seen_sources.add(source_name)
 
-        # 8. DETECCIÓN DE RESPUESTA NEGATIVA (Cobertura)
+        # 8. DETECCIÓN NEGATIVA
         negative_markers = [
-            "I am sorry, I cannot find",
-            "Lo siento, no puedo encontrar",
-            "no he encontrado información",
-            "cannot find that information",
-            "I don't see any information",
-            "don't have access to",
-            "Unfortunately, I don't see"
+            "I am sorry, I cannot find", "Lo siento, no puedo encontrar",
+            "no he encontrado información", "cannot find that information",
+            "I don't see any information", "don't have access to",
+            "Unfortunately, I don't see", "does not include information"
         ]
         is_negative_answer = any(marker in answer_text for marker in negative_markers)
         
         if is_negative_answer:
-            sources = []     # Si no sabe la respuesta, no mostramos fuentes (o mostramos vacías)
-            suggestions = [] # No sugerimos nada si no hay contexto
+            sources = []
+            suggestions = []
         else:
-            # Generar sugerencias (Next Steps)
             suggestions = self._generate_suggestions(answer_text, serialized, input, language)
 
-        # 9. FINALIZAR CRONÓMETRO Y LOGUEAR
+        # 9. LOGS
         end_time = time.time()
-        
         log_automated_metric(
             question=original_input,
             answer=answer_text,

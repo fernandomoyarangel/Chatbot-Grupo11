@@ -69,18 +69,11 @@ def retrieve_context_data(query: str, k: int = 20):
     serialized = "\n\n".join(
         (
             f"CONTENT BLOCK:\n"
-            f"TYPE: {type_map.get(doc.metadata.get('doc_type'), 'GENERAL INFO')}\n" 
-            f"MOVIE TITLE: {doc.metadata.get('name', 'Unknown')}\n"
-            f"GENRES: {doc.metadata.get('genres', 'Unknown')}\n"
-            f"YEAR: {doc.metadata.get('year', 'Unknown')}\n"
-            f"BOX OFFICE: {doc.metadata.get('box_office', 'Unknown')}\n"
-            f"RUNTIME: {doc.metadata.get('runtime', 'Unknown')}\n"
-            
-            # 2. CONTENIDO
-            f"CONTENT:\n{doc.page_content}\n"
-            
-            f"SOURCE: {doc.metadata.get('source', 'Unknown')}\n"
-            "----------------"
+            f"TYPE: {type_map.get(doc.metadata.get('doc_type', ''), 'GENERAL INFO')}\n"
+            f"SOURCE_ID: {doc.metadata.get('source', 'Unknown')}\n"
+            f"CONTENT:\n"
+            f"{doc.page_content}\n"
+            f"----------------"
         )
         for doc in retrieved_docs
     )
