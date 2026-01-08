@@ -1,20 +1,20 @@
 import os
 import sys
 import requests
+import random
 import streamlit as st
 from langdetect import detect, DetectorFactory, LangDetectException
 from pathlib import Path
-project_root = Path(__file__).resolve().parent.parent.parent
 
+project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
-# ------------------------------------
 
-# AHORA sí funcionarán estos imports
+# ------------------------------------
 from app.core.evaluation_logger import log_human_feedback
 from app.agente.rag_service import get_llm_model
 from langchain_core.messages import HumanMessage
-from langchain_core.messages import HumanMessage
+
 # --- Configuración de la página ---
 st.set_page_config(
     page_title="CineBot Expert 🎬",
@@ -23,7 +23,25 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- DICCIONARIO DE TRADUCCIONES (Internacionalización) ---
+# --- POOL DE PREGUNTAS ---
+INITIAL_SUGGESTIONS = {
+    "English": [
+        "Tell me about some movies that came out in 2008?",
+        "In which order should I watch Star Wars?",
+        "Recommend me some horror films",
+        "Who is Shrek's best friend?",
+        "Who are the main characters of Star Wars?"
+    ],
+    "Español": [
+        "¿Háblame de algunas películas que salieron en 2008?",
+        "¿En qué orden debería ver Star Wars?",
+        "Recomiéndame algunas películas de terror",
+        "¿Quién es el mejor amigo de Shrek?",
+        "¿Quiénes son los personajes principales de Star Wars?"
+    ]
+}
+
+# --- DICCIONARIO DE TRADUCCIONES ---
 TEXTS = {
     "English": {
         "sidebar_title": "Box Office & Settings",
@@ -53,6 +71,7 @@ TEXTS = {
         "suggestions_label": "💡 You might also ask:",
         "btn_surprise": "🎲 Surprise me!",
         "surprise_prefix": "Did you know...",
+        "init_sugg_label": "✨ Or try one of these:",
     },
     "Español": {
         "sidebar_title": "Taquilla & Ajustes",
@@ -82,6 +101,7 @@ TEXTS = {
         "suggestions_label": "💡 Quizás te interese:",
         "btn_surprise": "🎲 ¡Sorpréndeme!",
         "surprise_prefix": "Sabías que...",
+        "init_sugg_label": "✨ O prueba con una de estas:",
     }
 }
 
@@ -93,7 +113,7 @@ def get_text(key):
     return TEXTS[lang].get(key, f"MISSING: {key}")
 
 
-# --- Estilos CSS Personalizados (Tema Otoño/Cine) ---
+# --- Estilos CSS Personalizados ---
 st.markdown("""
 <style>
     /* Fondo y tipografía general */
@@ -155,9 +175,19 @@ st.markdown("""
         padding-bottom: 20px;
     }
 
-    /* Botones de sugerencias */
-    .stButton button {
-        border-radius: 20px;
+    /* ESTILO PARA BOTONES TRANSPARENTES (Feedback) */
+    section.main .stButton button {
+        background-color: transparent !important;
+        border: none !important;
+        color: #5D4037 !important; 
+        font-size: 1.2rem;
+        transition: transform 0.2s, background-color 0.2s;
+    }
+
+    section.main .stButton button:hover {
+        background-color: rgba(93, 64, 55, 0.1) !important;
+        transform: scale(1.1);
+        border-radius: 50%;
     }
 
     /* Modal de topicos */
@@ -197,6 +227,13 @@ if "history" not in st.session_state:
 if "language" not in st.session_state:
     st.session_state.language = "English"
 
+# [CORRECCIÓN] Inicializamos el estado para las sugerencias aleatorias
+if "random_suggestions" not in st.session_state:
+    st.session_state.random_suggestions = []
+
+if "suggestions_lang" not in st.session_state:
+    st.session_state.suggestions_lang = ""
+
 # Lógica para aplicar cambio de idioma pendiente (RERUN TRICK)
 if "pending_language" in st.session_state:
     st.session_state.language = st.session_state.pending_language
@@ -216,9 +253,30 @@ if "sources_history" not in st.session_state:
     st.session_state.sources_history = []
 
 
+def initialize_random_suggestions():
+    """Genera 3 sugerencias aleatorias y las guarda en Session State."""
+    current_lang = st.session_state.language
+    pool = INITIAL_SUGGESTIONS.get(current_lang, INITIAL_SUGGESTIONS["English"])
+    num_choices = min(3, len(pool))
+
+    if num_choices > 0:
+        st.session_state.random_suggestions = random.sample(pool, num_choices)
+        st.session_state.suggestions_lang = current_lang
+    else:
+        st.session_state.random_suggestions = []
+
+
 def clear_history():
     st.session_state.history = []
     st.session_state.sources_history = []
+    # [IMPORTANTE] Al borrar historial, forzamos nuevas sugerencias llamando a la función
+    initialize_random_suggestions()
+
+
+# --- Inicialización Única al cargar la página ---
+# Si la lista está vacía o el idioma cambió respecto a lo guardado, generamos.
+if not st.session_state.random_suggestions or st.session_state.suggestions_lang != st.session_state.language:
+    initialize_random_suggestions()
 
 
 # --- Funciones Auxiliares ---
@@ -251,7 +309,6 @@ def render_sources_with_summary(sources, unique_key_suffix):
                 st.caption(f"Topic: {source.get('topic_id', 'N/A')}")
 
             with col2:
-                # Texto del botón desde el diccionario
                 btn_label = get_text("btn_summarize")
                 btn_key = f"btn_sum_{unique_key_suffix}_{i}"
                 if st.button(btn_label, key=btn_key):
@@ -263,7 +320,7 @@ def render_sources_with_summary(sources, unique_key_suffix):
                             resp = requests.post(
                                 f"{API_URL}/summary",
                                 json={"filename": src_name, "language": api_lang},
-                                timeout=60
+                                timeout=150
                             )
                             if resp.ok:
                                 summary = resp.json().get("summary", "")
@@ -309,7 +366,6 @@ with st.sidebar:
         st.image("https://img.icons8.com/dusk/200/clapperboard.png", width="stretch")
 
     with col_txt:
-        # Texto un poco más ajustado
         st.markdown(
             f"""<div style='line-height: 1.1; font-weight: bold; color: #FFCC80; padding-top: 5px;'>
             {get_text('sidebar_desc').replace(chr(10), '<br>')}
@@ -317,14 +373,13 @@ with st.sidebar:
             unsafe_allow_html=True
         )
 
-    # 2. SEPARADOR PERSONALIZADO (Aquí está el truco para acercar el botón)
-    # Usamos margen negativo (-15px) para subir la línea y pegarla a la claqueta
+    # 2. SEPARADOR PERSONALIZADO
     st.markdown(
         "<div style='margin-top: -15px; margin-bottom: 10px; border-top: 1px solid #8D6E63;'></div>",
         unsafe_allow_html=True
     )
 
-    # 3. BOTONES DE ACCIÓN (Ahora estarán más cerca)
+    # 3. BOTONES DE ACCIÓN
     if st.button(get_text("btn_reset"), width="stretch"):
         clear_history()
         st.rerun()
@@ -388,16 +443,10 @@ st.markdown(f'<div class="sub-header">{get_text("sub_header")}</div>', unsafe_al
 
 
 def detect_language_with_llm(text: str) -> str:
-    """
-    Usa el LLM para clasificar el idioma cuando langdetect falla.
-    """
+    """Usa el LLM para clasificar el idioma cuando langdetect falla."""
     try:
-        # Obtenemos la instancia cacheada del modelo (Qwen/Llama según tu config)
         llm = get_llm_model()
-
-        # Truco de eficiencia: Solo analizamos los primeros 200 caracteres
         sample = text[:200].replace("\n", " ")
-
         prompt = f"""
         Classify the language of the following text. 
         Return ONLY one word: 'Español' or 'English'.
@@ -406,47 +455,32 @@ def detect_language_with_llm(text: str) -> str:
         Text: "{sample}"
         Language:
         """
-
-        # Invocamos al modelo
         response = llm.invoke(prompt)
-
-        # Limpiamos la respuesta (quitamos espacios, puntos, etc.)
         detected = response.content.strip().replace(".", "")
-
-        # Normalizamos la salida
         if "Español" in detected or "Spanish" in detected:
             return "Español"
         if "English" in detected or "Ingles" in detected:
             return "English"
         return None
-
     except Exception as e:
         print(f"Error en detección LLM: {e}")
         return None
 
 
 def smart_language_detector(text, client_llm=None):
-    """
-    Devuelve "Español", "English" o None si no está seguro.
-    Integra langdetect y fallback a LLM.
-    """
     if not text or len(text.strip()) < 2:
         return None
-
-    # --- 1. INTENTO LOCAL (Rápido, coste cero) ---
     try:
         local_code = detect(text)
-        # Si langdetect está muy seguro, retornamos.
         if local_code in ['es', 'ca']:
             return "Español"
         if local_code == 'en':
             return "English"
     except LangDetectException:
         pass
-
-    # --- 2. INTENTO LLM (Inteligente, coste API) ---
     print(f"DEBUG: Usando LLM para detectar idioma de: '{text[:30]}...'")
     return detect_language_with_llm(text)
+
 
 # --- Input de chat con Detección Automática ---
 prompt_to_process = None
@@ -478,6 +512,7 @@ elif "saved_prompt" in st.session_state:
 if prompt_to_process:
     st.session_state.show_topics_modal = False
 
+
 def render_topics_modal():
     if st.session_state.topic_error:
         st.error(st.session_state.topic_error)
@@ -488,7 +523,6 @@ def render_topics_modal():
         with tabs[0]:
             if st.session_state.topic_plot_html:
                 html = st.session_state.topic_plot_html
-                # Forzar Plotly responsive
                 html = f"""
                 <div style="width:100%; height:100%; margin:0; padding:0;">
                 <style>
@@ -540,7 +574,11 @@ if st.session_state.show_topics_modal:
 chat_container = st.container()
 
 with chat_container:
-    if not st.session_state.history:
+    # --- LOGICA: PANTALLA INICIAL (Historial Vacío) ---
+    # [CORRECCIÓN APLICADA AQUÍ]
+    # Se añade 'and not prompt_to_process' para que desaparezcan
+    # si hay una pregunta esperando ser respondida.
+    if not st.session_state.history and not prompt_to_process:
         st.markdown(
             f"""
             <div style="text-align: center; margin-top: 50px; color: #8D6E63;">
@@ -551,16 +589,30 @@ with chat_container:
             unsafe_allow_html=True
         )
 
-    assistant_idx = 0 
-    
-    # Usamos enumerate para tener índices únicos
+        if st.session_state.random_suggestions:
+            st.write("")
+            st.markdown(
+                f"<div style='text-align:center; color:#8D6E63; margin-bottom:15px;'><i>{get_text('init_sugg_label')}</i></div>",
+                unsafe_allow_html=True)
+
+            col_s1, col_s2, col_s3 = st.columns(3)
+            cols_list = [col_s1, col_s2, col_s3]
+
+            for idx, suggestion in enumerate(st.session_state.random_suggestions):
+                if cols_list[idx].button(suggestion, key=f"init_sugg_{idx}"):
+                    st.session_state.saved_prompt = suggestion
+                    st.session_state.pending_language = st.session_state.language
+                    st.rerun()
+
+    # --- LOGICA: HISTORIAL EXISTENTE ---
+    assistant_idx = 0
+
     for i, (role, text) in enumerate(st.session_state.history):
         avatar = "👤" if role == "user" else "🎥"
         with st.chat_message(role, avatar=avatar):
             st.markdown(text)
-            
+
             if role == "assistant":
-                # --- RECUPERAR DATOS ---
                 sources = []
                 suggestions = []
                 if assistant_idx < len(st.session_state.sources_history):
@@ -571,11 +623,9 @@ with chat_container:
                     elif isinstance(data, list):
                         sources = data
 
-                # --- RENDERIZAR FUENTES ---
                 if sources:
                     render_sources_with_summary(sources, unique_key_suffix=f"hist_{i}")
 
-                # --- RENDERIZAR SUGERENCIAS ---
                 if suggestions:
                     st.markdown(f"**{get_text('suggestions_label')}**")
                     scols = st.columns(len(suggestions))
@@ -585,26 +635,20 @@ with chat_container:
                             st.session_state.pending_language = st.session_state.language
                             st.rerun()
 
-                # --- RENDERIZAR FEEDBACK (BOTONES) ---
-                # Intentamos recuperar la pregunta del usuario anterior
-                prev_q = st.session_state.history[i-1][1] if i > 0 else "Unknown question"
-
                 st.write("---")
-                # Columnas para los botones
-                fb_c1, fb_c2, _ = st.columns([1, 1, 6])
-                
-                with fb_c1:
+                col_spacer, col_like, col_dislike = st.columns([14, 1, 1])
+
+                with col_like:
                     if st.button("👍", key=f"like_hist_{i}"):
-                        log_human_feedback(prev_q, text, rating=1)
+                        log_human_feedback(st.session_state.history[i - 1][1] if i > 0 else "", text, rating=1)
                         st.toast("Guardado: 👍", icon="✅")
-                
-                with fb_c2:
+
+                with col_dislike:
                     if st.button("👎", key=f"dislike_hist_{i}"):
-                        log_human_feedback(prev_q, text, rating=0)
+                        log_human_feedback(st.session_state.history[i - 1][1] if i > 0 else "", text, rating=0)
                         st.toast("Guardado: 👎", icon="📝")
 
                 assistant_idx += 1
-
 
 # --- Procesamiento del Mensaje ---
 if prompt_to_process:
@@ -618,7 +662,7 @@ if prompt_to_process:
     with st.chat_message("assistant", avatar="🎥"):
         message_placeholder = st.empty()
         full_response = ""
-        full_answer_obj = {}  # [NEW]
+        full_answer_obj = {}
         sources = []
         suggestions = []
         with st.spinner(get_text("spinner")):
@@ -634,7 +678,7 @@ if prompt_to_process:
                 )
                 if resp.ok:
                     data = resp.json()
-                    full_answer_obj = data.get("answer", {})  # [NEW] Guardamos todo el objeto
+                    full_answer_obj = data.get("answer", {})
                     full_response = full_answer_obj.get("content", "")
                     sources = full_answer_obj.get("sources", [])
                 else:
@@ -645,42 +689,33 @@ if prompt_to_process:
         message_placeholder.markdown(full_response)
 
         filtered_sources = dedupe_sources(sources)
-
-        # Actualizamos fuentes filtradas en el objeto antes de guardar
         full_answer_obj["sources"] = filtered_sources
-        # suggestions ya viene en full_answer_obj["suggestions"]
 
         if filtered_sources:
             render_sources_with_summary(filtered_sources, unique_key_suffix="curr")
 
-        # [NEW] Mostrar sugerencias en la respuesta actual
         suggestions = full_answer_obj.get("suggestions", [])
         if suggestions:
             st.markdown(f"**{get_text('suggestions_label')}**")
             cols = st.columns(len(suggestions))
             for i, suggestion in enumerate(suggestions):
-                # OJO: key 'curr' para diferenciar del historial
                 if cols[i].button(suggestion, key=f"sugg_curr_{i}"):
                     st.session_state.saved_prompt = suggestion
                     st.session_state.pending_language = st.session_state.language
                     st.rerun()
 
         st.write("---")
-        fb_curr_1, fb_curr_2, _ = st.columns([1, 1, 6])
-        
-        with fb_curr_1:
+        col_spacer_curr, col_like_curr, col_dislike_curr = st.columns([14, 1, 1])
+
+        with col_like_curr:
             if st.button("👍", key="like_current"):
                 log_human_feedback(prompt, full_response, rating=1)
                 st.toast("Guardado: 👍", icon="✅")
-                
-        with fb_curr_2:
+
+        with col_dislike_curr:
             if st.button("👎", key="dislike_current"):
                 log_human_feedback(prompt, full_response, rating=0)
                 st.toast("Guardado: 👎", icon="📝")
-                
+
         st.session_state.history.append(("assistant", full_response))
-
-        # [MODIFIED] Guardamos TODO el objeto (sources + suggestions) en el historial
         st.session_state.sources_history.append(full_answer_obj)
-
-
