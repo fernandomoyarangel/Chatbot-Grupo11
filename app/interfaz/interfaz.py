@@ -160,7 +160,7 @@ st.markdown("""
         border-left: 5px solid #E67E22;
     }
 
-    /* Sidebar */
+    /* Sidebar General */
     [data-testid="stSidebar"] {
         background-color: #4E342E;
         color: #EFEBE9;
@@ -172,12 +172,31 @@ st.markdown("""
         color: #D7CCC8;
     }
 
+    /* --- NUEVO: ESTILO PARA BOTONES DEL SIDEBAR --- */
+    /* Estado NORMAL: Fondo Marrón, Letras Claras */
+    [data-testid="stSidebar"] .stButton button {
+        background-color: #6D4C41; 
+        color: #FFFFFF;
+        border: 1px solid #8D6E63;
+        transition: all 0.3s ease;
+        width: 100%; /* Opcional: para que ocupen todo el ancho */
+    }
+
+    /* Estado HOVER: Fondo Claro, Letras Marrones */
+    [data-testid="stSidebar"] .stButton button:hover {
+        background-color: #FAF3E0;
+        color: #4E342E;
+        border: 1px solid #FAF3E0;
+        transform: scale(1.02);
+    }
+
     /* Input de chat */
     .stChatInputContainer {
         padding-bottom: 20px;
     }
 
-    /* ESTILO PARA BOTONES TRANSPARENTES (Feedback) */
+    /* ESTILO PARA BOTONES TRANSPARENTES (Feedback / Main Area) */
+    /* Usamos 'section.main' para asegurar que NO afecte al sidebar */
     section.main .stButton button {
         background-color: transparent !important;
         border: none !important;
@@ -218,7 +237,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
 API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 if "history" not in st.session_state:
