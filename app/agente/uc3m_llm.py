@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from typing import List, Optional, Any
 
@@ -50,7 +51,8 @@ class UC3MChatModel(BaseChatModel):
         resp = requests.post(UC3M_URL, headers=headers, json=payload, verify=False, timeout=120)
         resp.raise_for_status()
         text = resp.json().get("response") or resp.json().get("output") or ""
-        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=text))])
+        clean_text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+        return ChatResult(generations=[ChatGeneration(message=AIMessage(content=clean_text))])
 
 # --- FUNCIÓN FACTORY (Para usar en rag_service.py) ---
 def get_llm_model():
