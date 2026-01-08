@@ -21,9 +21,9 @@ La API quedará accesible en `http://localhost:8000`. Endpoints clave:
 ## 2. Levantar la interfaz (Streamlit)
 En otra terminal, también desde la raíz:
 ```bash
-poetry run streamlit run app/interfaz/app.py
+poetry run streamlit run app/interfaz/interfaz.py
 ```
-La interfaz abrirá en `http://localhost:8501`. Asegúrate de que en `app/interfaz/app.py` el POST apunte a `f"{API_URL}/chat"` para usar el endpoint sin prefijo.
+La interfaz abrirá en `http://localhost:8501`. Asegúrate de que en `app/interfaz/interfaz.py` el POST apunte a `f"{API_URL}/chat"` para usar el endpoint sin prefijo.
 
 ## Variables de entorno de ejemplo
 En `.env.ejemplo` tienes:

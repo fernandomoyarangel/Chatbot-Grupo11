@@ -11,6 +11,7 @@ if str(project_root) not in sys.path:
 # ------------------------------------
 
 # AHORA sí funcionarán estos imports
+from app.core.evaluation_logger import log_human_feedback
 from app.agente.rag_service import get_llm_model
 from langchain_core.messages import HumanMessage
 from langchain_core.messages import HumanMessage
@@ -550,45 +551,59 @@ with chat_container:
             unsafe_allow_html=True
         )
 
-    assistant_idx = 0
-    for role, text in st.session_state.history:
+    assistant_idx = 0 
+    
+    # Usamos enumerate para tener índices únicos
+    for i, (role, text) in enumerate(st.session_state.history):
         avatar = "👤" if role == "user" else "🎥"
         with st.chat_message(role, avatar=avatar):
             st.markdown(text)
+            
             if role == "assistant":
+                # --- RECUPERAR DATOS ---
                 sources = []
-                suggestions = []  # [NEW] Variable para sugerencias
-
-                # Acceder a la info guardada en history
+                suggestions = []
                 if assistant_idx < len(st.session_state.sources_history):
-                    # [MODIFIED] Ahora se asume que sources_history guarda todo el objeto 'answer'
-                    data_block = st.session_state.sources_history[assistant_idx]
+                    data = st.session_state.sources_history[assistant_idx]
+                    if isinstance(data, dict):
+                        sources = data.get("sources", [])
+                        suggestions = data.get("suggestions", [])
+                    elif isinstance(data, list):
+                        sources = data
 
-                    # Compatibilidad hacia atrás si antes solo se guardaban listas
-                    if isinstance(data_block, list):
-                        sources = data_block
-                    elif isinstance(data_block, dict):
-                        sources = data_block.get("sources", [])
-                        suggestions = data_block.get("suggestions", [])
-
-                assistant_idx += 1
-
+                # --- RENDERIZAR FUENTES ---
                 if sources:
-                    render_sources_with_summary(sources, unique_key_suffix=f"hist_{assistant_idx}")
+                    render_sources_with_summary(sources, unique_key_suffix=f"hist_{i}")
 
-                # [NEW] Renderizar sugerencias como botones
+                # --- RENDERIZAR SUGERENCIAS ---
                 if suggestions:
                     st.markdown(f"**{get_text('suggestions_label')}**")
-                    # Usamos columnas para que no ocupen tanto espacio vertical
-                    cols = st.columns(len(suggestions))
-                    for i, suggestion in enumerate(suggestions):
-                        # Clave única obligatoria para cada botón
-                        if cols[i].button(suggestion, key=f"sugg_{assistant_idx}_{i}"):
-                            # Al hacer click, guardamos el prompt y recargamos
-                            st.session_state.saved_prompt = suggestion
+                    scols = st.columns(len(suggestions))
+                    for idx_s, sug in enumerate(suggestions):
+                        if scols[idx_s].button(sug, key=f"sugg_{i}_{idx_s}"):
+                            st.session_state.saved_prompt = sug
                             st.session_state.pending_language = st.session_state.language
                             st.rerun()
 
+                # --- RENDERIZAR FEEDBACK (BOTONES) ---
+                # Intentamos recuperar la pregunta del usuario anterior
+                prev_q = st.session_state.history[i-1][1] if i > 0 else "Unknown question"
+
+                st.write("---")
+                # Columnas para los botones
+                fb_c1, fb_c2, _ = st.columns([1, 1, 6])
+                
+                with fb_c1:
+                    if st.button("👍", key=f"like_hist_{i}"):
+                        log_human_feedback(prev_q, text, rating=1)
+                        st.toast("Guardado: 👍", icon="✅")
+                
+                with fb_c2:
+                    if st.button("👎", key=f"dislike_hist_{i}"):
+                        log_human_feedback(prev_q, text, rating=0)
+                        st.toast("Guardado: 👎", icon="📝")
+
+                assistant_idx += 1
 
 
 # --- Procesamiento del Mensaje ---
@@ -650,6 +665,19 @@ if prompt_to_process:
                     st.session_state.pending_language = st.session_state.language
                     st.rerun()
 
+        st.write("---")
+        fb_curr_1, fb_curr_2, _ = st.columns([1, 1, 6])
+        
+        with fb_curr_1:
+            if st.button("👍", key="like_current"):
+                log_human_feedback(prompt, full_response, rating=1)
+                st.toast("Guardado: 👍", icon="✅")
+                
+        with fb_curr_2:
+            if st.button("👎", key="dislike_current"):
+                log_human_feedback(prompt, full_response, rating=0)
+                st.toast("Guardado: 👎", icon="📝")
+                
         st.session_state.history.append(("assistant", full_response))
 
         # [MODIFIED] Guardamos TODO el objeto (sources + suggestions) en el historial

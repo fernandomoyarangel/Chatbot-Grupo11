@@ -1,6 +1,6 @@
 import os
 import requests
-from typing import List
+from typing import List, Optional, Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
@@ -30,17 +30,19 @@ def _messages_to_prompt(messages: List[BaseMessage]) -> str:
 class UC3MChatModel(BaseChatModel):
     model: str = DEFAULT_MODEL
 
+    temperature: float = 0.5
+
     @property
     def _llm_type(self) -> str:
         return "uc3m_chat_api"
 
     @property
     def _identifying_params(self):
-        return {"model": self.model}
+        return {"model": self.model, "temperature": self.temperature}
 
     def _generate(self, messages: List[BaseMessage], stop=None, run_manager=None, **kwargs) -> ChatResult:
         prompt = _messages_to_prompt(messages)
-        payload = {"model": self.model, "prompt": prompt, "stream": False}
+        payload = {"model": self.model, "prompt": prompt, "stream": False, "temperature": self.temperature}
         headers = {
             "Content-Type": "application/json",
             "X-API-KEY": os.getenv("UC3M_API_KEY"),
@@ -49,3 +51,11 @@ class UC3MChatModel(BaseChatModel):
         resp.raise_for_status()
         text = resp.json().get("response") or resp.json().get("output") or ""
         return ChatResult(generations=[ChatGeneration(message=AIMessage(content=text))])
+
+# --- FUNCIÓN FACTORY (Para usar en rag_service.py) ---
+def get_llm_model():
+    # Aquí instanciamos el modelo forzando la temperatura a 0
+    return UC3MChatModel(
+        model=settings.DEFAULT_MODEL,
+        temperature=0.5 
+    )
